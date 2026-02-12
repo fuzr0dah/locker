@@ -14,7 +14,7 @@ build:
 	@echo "Built: $(BUILD_DIR)/$(BINARY_NAME)"
 
 run: build
-	$(BUILD_DIR)/$(BINARY_NAME)
+	$(BUILD_DIR)/$(BINARY_NAME) server --dev
 
 clean:
 	rm -rf $(BUILD_DIR)
