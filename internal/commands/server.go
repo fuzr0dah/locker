@@ -28,7 +28,7 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 			var err error
 
 			if devMode {
-				fmt.Fprintf(f.stdout, "Running in dev mode (in-memory storage)\n")
+				fmt.Fprintf(f.stdout, "Running in dev mode\n")
 				secretsFacade, err = facade.NewInMemoryFacade()
 				if err != nil {
 					return fmt.Errorf("init facade: %w", err)

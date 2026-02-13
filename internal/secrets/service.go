@@ -27,8 +27,8 @@ func (s *Service) Close() error {
 }
 
 // Create creates a new secret
-func (s *Service) Create(ctx context.Context, name string, value []byte) (*Secret, error) {
-	secret, err := s.storage.CreateSecret(ctx, name, value)
+func (s *Service) Create(ctx context.Context, name string, value string) (*Secret, error) {
+	secret, err := s.storage.CreateSecret(ctx, name, []byte(value))
 	if err != nil {
 		return nil, fmt.Errorf("create secret: %w", err)
 	}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fuzr0dah/locker/internal/db"
 	"github.com/fuzr0dah/locker/internal/db/migrations"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -14,22 +15,23 @@ import (
 
 // InMemoryStorage implements Storage interface using SQLite in-memory mode
 type InMemoryStorage struct {
-	db *sql.DB
+	db      *sql.DB
+	queries *db.Queries
 }
 
 // NewInMemoryStorage creates and initializes a new in-memory storage instance
 func NewInMemoryStorage() (*InMemoryStorage, error) {
-	db, err := sql.Open("sqlite3", "file::memory:?cache=shared&_fk=on")
+	conn, err := sql.Open("sqlite3", "file::memory:?cache=shared&_fk=on")
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	if err := migrations.RunMigrations(db); err != nil {
-		db.Close()
+	if err := migrations.RunMigrations(conn); err != nil {
+		conn.Close()
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
-	return &InMemoryStorage{db: db}, nil
+	return &InMemoryStorage{db: conn, queries: db.New(conn)}, nil
 }
 
 // Close closes the storage connection
@@ -42,14 +44,21 @@ func (s *InMemoryStorage) Close() error {
 
 // CreateSecret creates a new secret with the given name and value
 func (s *InMemoryStorage) CreateSecret(ctx context.Context, name string, value []byte) (*Secret, error) {
-	// TODO: implement using sqlc queries
-	return nil, errors.New("not implemented")
+	params := db.CreateSecretParams{Name: name, Value: value}
+	secret, err := s.queries.CreateSecret(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("create secret: %w", err)
+	}
+	return fromDBSecret(secret), nil
 }
 
 // GetSecret retrieves a secret by name
 func (s *InMemoryStorage) GetSecret(ctx context.Context, name string) (*Secret, error) {
-	// TODO: implement using sqlc queries
-	return nil, errors.New("not implemented")
+	secret, err := s.queries.GetSecretByName(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("get secret: %w", err)
+	}
+	return fromDBSecret(secret), nil
 }
 
 // UpdateSecret updates the value of an existing secret
@@ -66,8 +75,16 @@ func (s *InMemoryStorage) DeleteSecret(ctx context.Context, name string) error {
 
 // ListSecrets returns all secrets (without values for performance)
 func (s *InMemoryStorage) ListSecrets(ctx context.Context) ([]*Secret, error) {
-	// TODO: implement using sqlc queries
-	return nil, errors.New("not implemented")
+	dto, err := s.queries.ListSecrets(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list secrets: %w", err)
+	}
+	secrets := make([]*Secret, len(dto))
+
+	for i := range dto {
+		secrets[i] = fromDBSecret(dto[i])
+	}
+	return secrets, nil
 }
 
 // GetSecretVersions returns version history for a secret

@@ -8,7 +8,7 @@ import (
 
 // SecretsFacade provides high-level operations for secrets management
 type SecretsFacade interface {
-	CreateSecret(ctx context.Context, name string, value []byte) (*secrets.Secret, error)
+	CreateSecret(ctx context.Context, name string, value string) (*secrets.Secret, error)
 	GetSecret(ctx context.Context, name string) (*secrets.Secret, error)
 	UpdateSecret(ctx context.Context, name string, value []byte) (*secrets.Secret, error)
 	DeleteSecret(ctx context.Context, name string) error
@@ -33,7 +33,7 @@ func NewInMemoryFacade() (SecretsFacade, error) {
 	return &facade{service: service}, nil
 }
 
-func (f *facade) CreateSecret(ctx context.Context, name string, value []byte) (*secrets.Secret, error) {
+func (f *facade) CreateSecret(ctx context.Context, name string, value string) (*secrets.Secret, error) {
 	return f.service.Create(ctx, name, value)
 }
 

@@ -22,7 +22,7 @@ type Secret struct {
 	ID        int64
 	Name      string
 	Value     []byte
-	Version   int
+	Version   int64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -31,7 +31,7 @@ type Secret struct {
 type SecretVersion struct {
 	ID        int64
 	SecretID  int64
-	Version   int
+	Version   int64
 	Value     []byte
 	CreatedAt time.Time
 }
