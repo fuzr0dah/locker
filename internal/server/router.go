@@ -8,15 +8,15 @@ import (
 	"github.com/go-chi/render"
 )
 
-type Router struct {
-	Facade facade.DummyFacade
+type router struct {
+	facade facade.SecretsFacade
 }
 
-func NewRouter(facade facade.DummyFacade) *Router {
-	return &Router{Facade: facade}
+func newRouter(f facade.SecretsFacade) *router {
+	return &router{facade: f}
 }
 
-func (router *Router) handleStatus(w http.ResponseWriter, r *http.Request) {
+func (router *router) handleStatus(w http.ResponseWriter, r *http.Request) {
 	render.Status(r, http.StatusOK)
 	render.JSON(w, r, `{"status":"ok"}`)
 }

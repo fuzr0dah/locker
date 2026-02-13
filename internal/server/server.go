@@ -11,11 +11,12 @@ import (
 type Server struct {
 	httpServer *http.Server
 	stdout     io.Writer
+	facade     facade.SecretsFacade
 }
 
-func NewServer(stdout io.Writer) *Server {
-	facade := facade.NewDummyFacade()
-	router := NewRouter(facade)
+// NewServer creates a new server with the given facade
+func NewServer(stdout io.Writer, f facade.SecretsFacade) *Server {
+	router := newRouter(f)
 	handler := createHandler(router)
 	return &Server{
 		httpServer: &http.Server{
@@ -23,6 +24,7 @@ func NewServer(stdout io.Writer) *Server {
 			Handler: handler,
 		},
 		stdout: stdout,
+		facade: f,
 	}
 }
 
