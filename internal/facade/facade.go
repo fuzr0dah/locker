@@ -14,7 +14,6 @@ type SecretsFacade interface {
 	DeleteSecret(ctx context.Context, name string) error
 	ListSecrets(ctx context.Context) ([]*secrets.Secret, error)
 	GetSecretVersions(ctx context.Context, name string, limit int) ([]*secrets.SecretVersion, error)
-	Close() error
 }
 
 // facade implements SecretsFacade
@@ -22,15 +21,9 @@ type facade struct {
 	service *secrets.Service
 }
 
-// NewInMemoryFacade creates a facade with in-memory storage (for dev mode)
-func NewInMemoryFacade() (SecretsFacade, error) {
-	storage, err := secrets.NewInMemoryStorage()
-	if err != nil {
-		return nil, err
-	}
-
-	service := secrets.NewService(storage)
-	return &facade{service: service}, nil
+// NewFacade creates a facade with in-memory storage (for dev mode)
+func NewFacade(service *secrets.Service) SecretsFacade {
+	return &facade{service: service}
 }
 
 func (f *facade) CreateSecret(ctx context.Context, name string, value string) (*secrets.Secret, error) {
@@ -55,8 +48,4 @@ func (f *facade) ListSecrets(ctx context.Context) ([]*secrets.Secret, error) {
 
 func (f *facade) GetSecretVersions(ctx context.Context, name string, limit int) ([]*secrets.SecretVersion, error) {
 	return f.service.GetVersions(ctx, name, limit)
-}
-
-func (f *facade) Close() error {
-	return f.service.Close()
 }

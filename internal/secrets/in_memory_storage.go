@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/fuzr0dah/locker/internal/db"
-	"github.com/fuzr0dah/locker/internal/db/migrations"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
@@ -19,19 +18,21 @@ type InMemoryStorage struct {
 	queries *db.Queries
 }
 
-// NewInMemoryStorage creates and initializes a new in-memory storage instance
-func NewInMemoryStorage() (*InMemoryStorage, error) {
+// OpenDB opens a new SQLite in-memory database connection
+func OpenDB() (*sql.DB, error) {
 	conn, err := sql.Open("sqlite3", "file::memory:?cache=shared&_fk=on")
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
+	return conn, nil
+}
 
-	if err := migrations.RunMigrations(conn); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("run migrations: %w", err)
+// NewStorage creates a new storage instance from an existing database connection
+func NewStorage(conn *sql.DB) *InMemoryStorage {
+	return &InMemoryStorage{
+		db:      conn,
+		queries: db.New(conn),
 	}
-
-	return &InMemoryStorage{db: conn, queries: db.New(conn)}, nil
 }
 
 // Close closes the storage connection

@@ -21,11 +21,6 @@ func NewService(storage Storage) *Service {
 	return &Service{storage: storage}
 }
 
-// Close closes the service and its storage
-func (s *Service) Close() error {
-	return s.storage.Close()
-}
-
 // Create creates a new secret
 func (s *Service) Create(ctx context.Context, name string, value string) (*Secret, error) {
 	secret, err := s.storage.CreateSecret(ctx, name, []byte(value))

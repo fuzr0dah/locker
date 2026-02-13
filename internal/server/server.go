@@ -2,30 +2,47 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
+	"github.com/fuzr0dah/locker/internal/db/migrations"
 	"github.com/fuzr0dah/locker/internal/facade"
+	"github.com/fuzr0dah/locker/internal/secrets"
 )
 
 type Server struct {
 	httpServer *http.Server
 	stdout     io.Writer
-	facade     facade.SecretsFacade
+	storage    secrets.Storage
 }
 
-// NewServer creates a new server with the given facade
-func NewServer(stdout io.Writer, f facade.SecretsFacade) *Server {
-	router := newRouter(f)
+// NewServer creates a new server with in-memory storage
+func NewServer(stdout io.Writer) (*Server, error) {
+	db, err := secrets.OpenDB()
+	if err != nil {
+		return nil, fmt.Errorf("open db: %w", err)
+	}
+
+	if err := migrations.RunMigrations(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("run migrations: %w", err)
+	}
+
+	storage := secrets.NewStorage(db)
+	service := secrets.NewService(storage)
+	facade := facade.NewFacade(service)
+	router := newRouter(facade)
 	handler := createHandler(router)
+
 	return &Server{
 		httpServer: &http.Server{
 			Addr:    ":8080",
 			Handler: handler,
 		},
-		stdout: stdout,
-		facade: f,
-	}
+		stdout:  stdout,
+		storage: storage,
+	}, nil
 }
 
 func (s *Server) Start() error {
@@ -33,5 +50,11 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	return s.httpServer.Shutdown(ctx)
+	httpErr := s.httpServer.Shutdown(ctx)
+	storageErr := s.storage.Close()
+
+	if httpErr != nil {
+		return httpErr
+	}
+	return storageErr
 }

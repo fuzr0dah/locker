@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/fuzr0dah/locker/internal/crypto"
-	"github.com/fuzr0dah/locker/internal/facade"
 	"github.com/fuzr0dah/locker/internal/server"
 
 	"github.com/spf13/cobra"
@@ -24,23 +23,18 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 		Long:         serverDescription,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var secretsFacade facade.SecretsFacade
-			var err error
-
 			if devMode {
 				fmt.Fprintf(f.stdout, "Running in dev mode\n")
-				secretsFacade, err = facade.NewInMemoryFacade()
-				if err != nil {
-					return fmt.Errorf("init facade: %w", err)
-				}
 			} else {
 				return fmt.Errorf("production mode not yet implemented, use --dev flag")
 			}
-			defer secretsFacade.Close()
 
 			fmt.Fprintf(f.stdout, "TODO: Master key - %s\n", crypto.GenerateMasterKey())
 
-			srv := server.NewServer(f.stdout, secretsFacade)
+			srv, err := server.NewServer(f.stdout)
+			if err != nil {
+				return fmt.Errorf("init server: %w", err)
+			}
 
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel()
