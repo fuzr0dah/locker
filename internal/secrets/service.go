@@ -30,21 +30,18 @@ func (s *Service) Create(ctx context.Context, name string, value string) (*Secre
 	return secret, nil
 }
 
-// Get retrieves a secret by name
-func (s *Service) Get(ctx context.Context, name string) (*Secret, error) {
-	secret, err := s.storage.GetSecret(ctx, name)
+// Get retrieves a secret by id
+func (s *Service) GetById(ctx context.Context, id int64) (*Secret, error) {
+	secret, err := s.storage.GetSecretById(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get secret: %w", err)
-	}
-	if secret == nil {
-		return nil, ErrSecretNotFound
 	}
 	return secret, nil
 }
 
 // Update updates a secret value (creates new version)
-func (s *Service) Update(ctx context.Context, name string, value []byte) (*Secret, error) {
-	secret, err := s.storage.UpdateSecret(ctx, name, value)
+func (s *Service) Update(ctx context.Context, name string, value string) (*Secret, error) {
+	secret, err := s.storage.UpdateSecret(ctx, name, []byte(value))
 	if err != nil {
 		return nil, fmt.Errorf("update secret: %w", err)
 	}

@@ -53,10 +53,13 @@ func (s *InMemoryStorage) CreateSecret(ctx context.Context, name string, value [
 	return fromDBSecret(secret), nil
 }
 
-// GetSecret retrieves a secret by name
-func (s *InMemoryStorage) GetSecret(ctx context.Context, name string) (*Secret, error) {
-	secret, err := s.queries.GetSecretByName(ctx, name)
+// GetSecretById retrieves a secret by id
+func (s *InMemoryStorage) GetSecretById(ctx context.Context, id int64) (*Secret, error) {
+	secret, err := s.queries.GetSecretById(ctx, id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrSecretNotFound
+		}
 		return nil, fmt.Errorf("get secret: %w", err)
 	}
 	return fromDBSecret(secret), nil

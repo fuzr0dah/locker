@@ -9,7 +9,7 @@ import (
 type Storage interface {
 	Close() error
 	CreateSecret(ctx context.Context, name string, value []byte) (*Secret, error)
-	GetSecret(ctx context.Context, name string) (*Secret, error)
+	GetSecretById(ctx context.Context, id int64) (*Secret, error)
 	UpdateSecret(ctx context.Context, name string, value []byte) (*Secret, error)
 	DeleteSecret(ctx context.Context, name string) error
 	ListSecrets(ctx context.Context) ([]*Secret, error)

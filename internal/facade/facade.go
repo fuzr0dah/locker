@@ -9,8 +9,8 @@ import (
 // SecretsFacade provides high-level operations for secrets management
 type SecretsFacade interface {
 	CreateSecret(ctx context.Context, name string, value string) (*secrets.Secret, error)
-	GetSecret(ctx context.Context, name string) (*secrets.Secret, error)
-	UpdateSecret(ctx context.Context, name string, value []byte) (*secrets.Secret, error)
+	GetSecretById(ctx context.Context, id int64) (*secrets.Secret, error)
+	UpdateSecret(ctx context.Context, name string, value string) (*secrets.Secret, error)
 	DeleteSecret(ctx context.Context, name string) error
 	ListSecrets(ctx context.Context) ([]*secrets.Secret, error)
 	GetSecretVersions(ctx context.Context, name string, limit int) ([]*secrets.SecretVersion, error)
@@ -30,11 +30,11 @@ func (f *facade) CreateSecret(ctx context.Context, name string, value string) (*
 	return f.service.Create(ctx, name, value)
 }
 
-func (f *facade) GetSecret(ctx context.Context, name string) (*secrets.Secret, error) {
-	return f.service.Get(ctx, name)
+func (f *facade) GetSecretById(ctx context.Context, id int64) (*secrets.Secret, error) {
+	return f.service.GetById(ctx, id)
 }
 
-func (f *facade) UpdateSecret(ctx context.Context, name string, value []byte) (*secrets.Secret, error) {
+func (f *facade) UpdateSecret(ctx context.Context, name string, value string) (*secrets.Secret, error) {
 	return f.service.Update(ctx, name, value)
 }
 

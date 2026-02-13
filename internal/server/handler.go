@@ -9,7 +9,7 @@ import (
 func createHandler(router *router) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/status", router.handleStatus)
-	r.Get("/secret", router.handleGetSecret)
+	r.Get("/secret/{id}", router.handleGetSecretByID)
 	r.Post("/secret", router.handleCreateSecret)
 	return r
 }

@@ -1,11 +1,15 @@
 package server
 
 import (
+	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/fuzr0dah/locker/internal/dto"
 	"github.com/fuzr0dah/locker/internal/facade"
+	"github.com/fuzr0dah/locker/internal/secrets"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
 
@@ -22,15 +26,29 @@ func (router *router) handleStatus(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, `{"status":"ok"}`)
 }
 
-func (router *router) handleGetSecret(w http.ResponseWriter, r *http.Request) {
-	secret, err := router.facade.GetSecret(r.Context(), "test")
+func (router *router) handleGetSecretByID(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]string{"error": "invalid id"})
+		return
+	}
+
+	secret, err := router.facade.GetSecretById(r.Context(), id)
 	if err != nil {
+		if errors.Is(err, secrets.ErrSecretNotFound) {
+			render.Status(r, http.StatusNotFound)
+			render.JSON(w, r, map[string]string{"error": "secret not found"})
+			return
+		}
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, map[string]string{"error": err.Error()})
 		return
 	}
-	// TODO: Fix this -> GetSecretResponse
-	resp := dto.CreateSecretResponse{
+
+	resp := dto.GetSecretResponse{
 		ID:        secret.ID,
 		Name:      secret.Name,
 		Value:     string(secret.Value),
