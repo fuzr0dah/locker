@@ -17,7 +17,6 @@ type Server struct {
 	storage    secrets.Storage
 }
 
-// NewServer creates a new server with in-memory storage
 func NewServer(stdout io.Writer) (*Server, error) {
 	db, err := secrets.OpenDB()
 	if err != nil {
@@ -50,11 +49,13 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	httpErr := s.httpServer.Shutdown(ctx)
-	storageErr := s.storage.Close()
-
-	if httpErr != nil {
-		return httpErr
+	if err := s.httpServer.Shutdown(ctx); err != nil {
+		return fmt.Errorf("http shutdown: %w", err)
 	}
-	return storageErr
+
+	if err := s.storage.Close(); err != nil {
+		return fmt.Errorf("storage close: %w", err)
+	}
+
+	return nil
 }

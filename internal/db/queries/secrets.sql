@@ -17,3 +17,9 @@ INSERT INTO secrets (
     ?1, ?2
 )
 RETURNING *;
+
+-- name UpdateSecret :one
+UPDATE secrets SET
+    value = ?2
+WHERE id = ?1
+RETURNING *;

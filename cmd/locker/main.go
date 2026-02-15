@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/fuzr0dah/locker/internal/commands"
+	"github.com/fuzr0dah/locker/internal/cli/commands"
 )
 
 func main() {

@@ -20,7 +20,11 @@ type InMemoryStorage struct {
 
 // OpenDB opens a new SQLite in-memory database connection
 func OpenDB() (*sql.DB, error) {
-	conn, err := sql.Open("sqlite3", "file::memory:?cache=shared&_fk=on")
+	conn, err := sql.Open("sqlite3", "file::memory:?cache=shared&_fk=on&_journal_mode=WAL&_busy_timeout=5000")
+
+	conn.SetMaxOpenConns(1)
+	conn.SetMaxIdleConns(1)
+
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
