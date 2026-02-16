@@ -105,7 +105,7 @@ func (s *InMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 		CurrentVersion: current.CurrentVersion,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("version conflict: %w", err)
+		return nil, ErrVersionConflict
 	}
 	if err != nil {
 		return nil, fmt.Errorf("update: %w", err)

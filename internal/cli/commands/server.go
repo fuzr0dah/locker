@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fuzr0dah/locker/internal/crypto"
 	"github.com/fuzr0dah/locker/internal/server"
 
 	"github.com/spf13/cobra"
@@ -24,17 +23,18 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if devMode {
-				fmt.Fprintf(f.stdout, "Running in dev mode\n")
+				f.print("server is running in dev mode")
 			} else {
 				return fmt.Errorf("production mode not yet implemented, use --dev flag")
 			}
 
-			fmt.Fprintf(f.stdout, "TODO: Master key - %s\n", crypto.GenerateMasterKey())
-
-			srv, err := server.NewServer(f.stdout)
+			srv, err := server.NewServer(f.serverLogger)
 			if err != nil {
+				f.cliLogger.Error("server initialization failed", "error", err)
 				return fmt.Errorf("init server: %w", err)
 			}
+
+			f.cliLogger.Info("server started", "addr", ":8080")
 
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel()
@@ -46,11 +46,22 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 
 			select {
 			case err := <-errChan:
+				f.cliLogger.Error("server runtime error", "error", err)
 				return err
 			case <-ctx.Done():
+				f.cliLogger.Info("server shutdown initiated", "reason", "signal received")
+
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer shutdownCancel()
-				return srv.Shutdown(shutdownCtx)
+
+				err := srv.Shutdown(shutdownCtx)
+				if err != nil {
+					f.cliLogger.Error("server shutdown failed", "error", err, "http_error", ctx.Err())
+					return err
+				}
+
+				f.cliLogger.Info("server stopped gracefully", "shutdown_duration", "5s")
+				return nil
 			}
 		},
 	}

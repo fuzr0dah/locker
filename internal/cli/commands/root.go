@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"fmt"
-
 	"github.com/fuzr0dah/locker/internal/version"
 
 	"github.com/spf13/cobra"
@@ -24,10 +22,10 @@ func (f *CommandsFactory) NewRootCommand() *cobra.Command {
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			if showVersion {
-				fmt.Fprintln(f.stdout, version.GetVersion())
+				f.print(version.GetVersion())
 				return
 			}
-			fmt.Fprintln(f.stdout, rootDescription)
+			f.print(rootDescription)
 		},
 	}
 

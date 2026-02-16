@@ -2,7 +2,7 @@ package facade
 
 import (
 	"context"
-	"strings"
+	"log/slog"
 
 	"github.com/fuzr0dah/locker/internal/api"
 	"github.com/fuzr0dah/locker/internal/secrets"
@@ -13,7 +13,7 @@ type SecretsFacade interface {
 	CreateSecret(ctx context.Context, name string, value string) (*api.Secret, error)
 	GetSecretById(ctx context.Context, id string) (*api.Secret, error)
 	UpdateSecret(ctx context.Context, id, name, value string) (*api.Secret, error)
-	DeleteSecret(ctx context.Context, name string) error
+	DeleteSecret(ctx context.Context, id string) error
 	ListSecrets(ctx context.Context) ([]*api.Secret, error)
 	GetSecretVersions(ctx context.Context, name string, limit int) ([]*secrets.SecretVersion, error)
 }
@@ -21,46 +21,64 @@ type SecretsFacade interface {
 // facade implements SecretsFacade
 type facade struct {
 	service secrets.SecretsService
+	logger  *slog.Logger
 }
 
-// NewFacade creates a facade with in-memory storage (for dev mode)
-func NewFacade(service secrets.SecretsService) SecretsFacade {
-	return &facade{service: service}
+// NewFacade creates a facade
+func NewFacade(service secrets.SecretsService, logger *slog.Logger) SecretsFacade {
+	return &facade{
+		service: service,
+		logger:  logger,
+	}
 }
 
 func (f *facade) CreateSecret(ctx context.Context, name string, value string) (*api.Secret, error) {
+	// TODO add traceID
+	logger := f.logger.With("operation", "create_secret")
+	logger.Info("creating secret", "name", name)
 	secret, err := f.service.Create(ctx, name, value)
 	if err != nil {
+		logger.Error("failed to create secret", "error", err)
 		return nil, mapToApiError(err)
 	}
+	logger.Info("secret created", "id", secret.ID)
 	return mapToApiSecret(secret), nil
 }
 
 func (f *facade) GetSecretById(ctx context.Context, id string) (*api.Secret, error) {
+	logger := f.logger.With("operation", "get_secret")
+	logger.Info("getting secret", "id", id)
 	secret, err := f.service.GetById(ctx, id)
 	if err != nil {
+		logger.Error("failed to get secret", "error", err)
 		return nil, mapToApiError(err)
 	}
+	logger.Info("secret retrieved", "id", id, "version", secret.Version)
 	return mapToApiSecret(secret), nil
 }
 
 func (f *facade) UpdateSecret(ctx context.Context, id, name, value string) (*api.Secret, error) {
+	logger := f.logger.With("operation", "update_secret")
+	logger.Info("updating secret", "id", id, "name", name)
 	secret, err := f.service.Update(ctx, id, name, value)
 	if err != nil {
-		// TODO fix this swap to domain error
-		if strings.Contains(err.Error(), "version conflict") {
-			return nil, api.APIError{
-				Code:    api.ErrConflict,
-				Message: "secret was modified by another request, retry",
-			}
-		}
+		logger.Error("failed to update secret", "error", err)
 		return nil, mapToApiError(err)
 	}
+	logger.Info("secret updated", "id", secret.ID, "version", secret.Version)
 	return mapToApiSecret(secret), nil
 }
 
-func (f *facade) DeleteSecret(ctx context.Context, name string) error {
-	return mapToApiError(f.service.Delete(ctx, name))
+func (f *facade) DeleteSecret(ctx context.Context, id string) error {
+	logger := f.logger.With("operation", "delete_secret")
+	logger.Info("deleting secret", "id", id)
+	err := f.service.Delete(ctx, id)
+	if err != nil {
+		logger.Error("failed to delete secret", "error", err)
+		return mapToApiError(err)
+	}
+	logger.Info("secret deleted", "id", id)
+	return nil
 }
 
 func (f *facade) ListSecrets(ctx context.Context) ([]*api.Secret, error) {

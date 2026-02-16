@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io"
+	"log/slog"
 	"net/http"
 
+	"github.com/fuzr0dah/locker/internal/crypto"
 	"github.com/fuzr0dah/locker/internal/db/migrations"
 	"github.com/fuzr0dah/locker/internal/facade"
 	"github.com/fuzr0dah/locker/internal/secrets"
@@ -13,11 +15,17 @@ import (
 
 type Server struct {
 	httpServer *http.Server
-	stdout     io.Writer
+	logger     *slog.Logger
 	storage    secrets.Storage
 }
 
-func NewServer(stdout io.Writer) (*Server, error) {
+func NewServer(logger *slog.Logger) (*Server, error) {
+	if logger == nil {
+		return nil, errors.New("logger is required")
+	}
+	logger.Info("initializing server", "addr", ":8080")
+	logger.Info("master key generated", "key", crypto.GenerateMasterKey())
+
 	db, err := secrets.OpenDB()
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
@@ -30,16 +38,20 @@ func NewServer(stdout io.Writer) (*Server, error) {
 
 	storage := secrets.NewStorage(db)
 	service := secrets.NewService(storage)
-	facade := facade.NewFacade(service)
+
+	facadeLogger := logger.With("component", "facade")
+	facade := facade.NewFacade(service, facadeLogger)
+
+	handlerLogger := logger.With("component", "handler")
 	router := newRouter(facade)
-	handler := createHandler(router)
+	handler := createHandler(router, handlerLogger)
 
 	return &Server{
 		httpServer: &http.Server{
 			Addr:    ":8080",
 			Handler: handler,
 		},
-		stdout:  stdout,
+		logger:  logger,
 		storage: storage,
 	}, nil
 }
@@ -52,10 +64,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("http shutdown: %w", err)
 	}
-
 	if err := s.storage.Close(); err != nil {
 		return fmt.Errorf("storage close: %w", err)
 	}
-
 	return nil
 }

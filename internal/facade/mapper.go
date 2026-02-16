@@ -28,8 +28,8 @@ func mapToApiError(err error) error {
 	switch {
 	case errors.Is(err, secrets.ErrSecretNotFound):
 		return api.SecretNotFoundErr
-	case errors.Is(err, secrets.ErrSecretExists):
-		return api.SecretExistsErr
+	case errors.Is(err, secrets.ErrVersionConflict):
+		return api.SecretVersionConflictErr
 	default:
 		return api.InternalErr
 	}

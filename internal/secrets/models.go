@@ -2,6 +2,7 @@ package secrets
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -35,3 +36,8 @@ type SecretVersion struct {
 	Value     []byte
 	CreatedAt time.Time
 }
+
+var (
+	ErrSecretNotFound  = errors.New("secret not found")
+	ErrVersionConflict = errors.New("secret versions conflict")
+)

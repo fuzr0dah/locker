@@ -2,13 +2,7 @@ package secrets
 
 import (
 	"context"
-	"errors"
 	"fmt"
-)
-
-var (
-	ErrSecretNotFound = errors.New("secret not found")
-	ErrSecretExists   = errors.New("secret already exists")
 )
 
 type SecretsService interface {
