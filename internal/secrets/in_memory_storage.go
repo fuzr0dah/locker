@@ -32,7 +32,7 @@ func OpenDB() (*sql.DB, error) {
 }
 
 // NewStorage creates a new storage instance from an existing database connection
-func NewStorage(conn *sql.DB) *InMemoryStorage {
+func NewStorage(conn *sql.DB) Storage {
 	return &InMemoryStorage{
 		db:      conn,
 		queries: db.New(conn),
@@ -49,7 +49,12 @@ func (s *InMemoryStorage) Close() error {
 
 // CreateSecret creates a new secret with the given name and value
 func (s *InMemoryStorage) CreateSecret(ctx context.Context, name string, value []byte) (*Secret, error) {
-	params := db.CreateSecretParams{Name: name, Value: value}
+	// TODO retry if generateSecretID make id with collisions
+	newId, err := generateSecretID()
+	if err != nil {
+		return nil, fmt.Errorf("create secret: %w", err)
+	}
+	params := db.CreateSecretParams{ID: newId, Name: name, Value: value}
 	secret, err := s.queries.CreateSecret(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("create secret: %w", err)
@@ -58,7 +63,7 @@ func (s *InMemoryStorage) CreateSecret(ctx context.Context, name string, value [
 }
 
 // GetSecretById retrieves a secret by id
-func (s *InMemoryStorage) GetSecretById(ctx context.Context, id int64) (*Secret, error) {
+func (s *InMemoryStorage) GetSecretById(ctx context.Context, id string) (*Secret, error) {
 	secret, err := s.queries.GetSecretById(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -70,39 +75,77 @@ func (s *InMemoryStorage) GetSecretById(ctx context.Context, id int64) (*Secret,
 }
 
 // UpdateSecret updates the value of an existing secret
-func (s *InMemoryStorage) UpdateSecret(ctx context.Context, name string, value []byte) (*Secret, error) {
-	// TODO: implement using sqlc queries
-	return nil, errors.New("not implemented")
+func (s *InMemoryStorage) UpdateSecret(ctx context.Context, id, name string, value []byte) (*Secret, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelSerializable,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	current, err := s.queries.WithTx(tx).GetSecretById(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.queries.WithTx(tx).InsertSecretVersion(ctx, db.InsertSecretVersionParams{
+		SecretID: current.ID,
+		Version:  current.CurrentVersion,
+		Value:    current.Value,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := s.queries.WithTx(tx).UpdateSecret(ctx, db.UpdateSecretParams{
+		ID:             id,
+		Name:           name,
+		Value:          value,
+		CurrentVersion: current.CurrentVersion,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("version conflict: %w", err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("update: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return fromDBSecret(updated), nil
 }
 
 // DeleteSecret removes a secret and all its versions (CASCADE)
-func (s *InMemoryStorage) DeleteSecret(ctx context.Context, name string) error {
-	// TODO: implement using sqlc queries
-	return errors.New("not implemented")
+func (s *InMemoryStorage) DeleteSecret(ctx context.Context, id string) error {
+	return s.queries.DeleteSecret(ctx, id)
 }
 
 // ListSecrets returns all secrets (without values for performance)
 func (s *InMemoryStorage) ListSecrets(ctx context.Context) ([]*Secret, error) {
-	dto, err := s.queries.ListSecrets(ctx)
+	list, err := s.queries.ListSecrets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list secrets: %w", err)
 	}
-	secrets := make([]*Secret, len(dto))
 
-	for i := range dto {
-		secrets[i] = fromDBSecret(dto[i])
+	secrets := make([]*Secret, len(list))
+	for i := range list {
+		secrets[i] = fromDBSecret(list[i])
 	}
+
 	return secrets, nil
 }
 
 // GetSecretVersions returns version history for a secret
-func (s *InMemoryStorage) GetSecretVersions(ctx context.Context, name string, limit int) ([]*SecretVersion, error) {
+func (s *InMemoryStorage) GetSecretVersion(ctx context.Context, id string, version int) (*SecretVersion, error) {
 	// TODO: implement using sqlc queries
 	return nil, errors.New("not implemented")
 }
 
 // GetSecretVersion returns a specific version of a secret
-func (s *InMemoryStorage) GetSecretVersion(ctx context.Context, name string, version int) (*SecretVersion, error) {
+func (s *InMemoryStorage) GetSecretVersions(ctx context.Context, id string, limit int) ([]*SecretVersion, error) {
 	// TODO: implement using sqlc queries
 	return nil, errors.New("not implemented")
 }

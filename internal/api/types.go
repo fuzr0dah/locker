@@ -6,7 +6,7 @@ import (
 )
 
 type Secret struct {
-	ID        int64     `json:"id"`
+	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Value     string    `json:"value,omitempty"`
 	Version   int64     `json:"version"`
@@ -21,10 +21,20 @@ type CreateSecretRequest struct {
 
 func (r *CreateSecretRequest) Validate() error {
 	if r.Name == "" {
-		return APIError{Code: ErrorBadRequest, Message: "name is required"}
+		return APIError{Code: ErrBadRequest, Message: "name is required"}
 	}
 	if !json.Valid([]byte(r.Value)) {
-		return APIError{Code: ErrorBadRequest, Message: "must be valid JSON"}
+		return APIError{Code: ErrBadRequest, Message: "must be valid JSON"}
 	}
+	return nil
+}
+
+type UpdateSecretRequest struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+func (r *UpdateSecretRequest) Validate() error {
+	// TODO: add validation
 	return nil
 }

@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/fuzr0dah/locker/internal/api"
 	"github.com/fuzr0dah/locker/internal/facade"
@@ -24,25 +23,6 @@ func (router *router) handleStatus(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, `{"status":"ok"}`)
 }
 
-func (router *router) handleGetSecretByID(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil || id <= 0 {
-		badRequest(w, r, "invalid id")
-		return
-	}
-
-	secret, err := router.facade.GetSecretById(r.Context(), id)
-	if err != nil {
-		respondWithError(w, r, err)
-		return
-	}
-
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, secret)
-}
-
 func (router *router) handleCreateSecret(w http.ResponseWriter, r *http.Request) {
 	var req api.CreateSecretRequest
 	if err := decodeRequest(r, &req); err != nil {
@@ -57,5 +37,35 @@ func (router *router) handleCreateSecret(w http.ResponseWriter, r *http.Request)
 	}
 
 	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, secret)
+}
+
+func (router *router) handleGetSecretByID(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	secret, err := router.facade.GetSecretById(r.Context(), idStr)
+	if err != nil {
+		respondWithError(w, r, err)
+		return
+	}
+
+	render.Status(r, http.StatusOK)
+	render.JSON(w, r, secret)
+}
+
+func (router *router) handleUpdateSecret(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	var req api.UpdateSecretRequest
+	if err := decodeRequest(r, &req); err != nil {
+		badRequest(w, r, err.Error())
+		return
+	}
+
+	secret, err := router.facade.UpdateSecret(r.Context(), idStr, req.Name, req.Value)
+	if err != nil {
+		respondWithError(w, r, err)
+		return
+	}
+
+	render.Status(r, http.StatusOK)
 	render.JSON(w, r, secret)
 }

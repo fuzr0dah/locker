@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE secret_versions (
   id INTEGER PRIMARY KEY,
-  secret_id INTEGER NOT NULL,
+  secret_id TEXT NOT NULL,
   version INTEGER NOT NULL,
   value BLOB NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

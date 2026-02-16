@@ -5,9 +5,10 @@ type ErrorCode string
 const (
 	ErrNotFound      ErrorCode = "NOT_FOUND"
 	ErrAlreadyExists ErrorCode = "ALREADY_EXISTS"
+	ErrConflict      ErrorCode = "CONFLICT"
 	ErrInvalidInput  ErrorCode = "INVALID_INPUT"
 	ErrInternal      ErrorCode = "INTERNAL_ERROR"
-	ErrorBadRequest  ErrorCode = "BAD_REQUEST"
+	ErrBadRequest    ErrorCode = "BAD_REQUEST"
 )
 
 type APIError struct {

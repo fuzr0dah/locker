@@ -10,17 +10,22 @@ import (
 )
 
 const createSecret = `-- name: CreateSecret :one
-INSERT INTO secrets (name, value) VALUES (?1, ?2)
+INSERT INTO secrets (
+    id, name, value
+) VALUES (
+    ?1, ?2, ?3
+)
 RETURNING id, name, value, current_version, created_at, updated_at
 `
 
 type CreateSecretParams struct {
+	ID    string
 	Name  string
 	Value []byte
 }
 
 func (q *Queries) CreateSecret(ctx context.Context, arg CreateSecretParams) (Secret, error) {
-	row := q.db.QueryRowContext(ctx, createSecret, arg.Name, arg.Value)
+	row := q.db.QueryRowContext(ctx, createSecret, arg.ID, arg.Name, arg.Value)
 	var i Secret
 	err := row.Scan(
 		&i.ID,
@@ -31,6 +36,16 @@ func (q *Queries) CreateSecret(ctx context.Context, arg CreateSecretParams) (Sec
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const deleteSecret = `-- name: DeleteSecret :exec
+DELETE FROM secrets
+WHERE id = ?1
+`
+
+func (q *Queries) DeleteSecret(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteSecret, id)
+	return err
 }
 
 const getSecretById = `-- name: GetSecretById :one
@@ -38,27 +53,8 @@ SELECT id, name, value, current_version, created_at, updated_at FROM secrets
 WHERE id = ?1 LIMIT 1
 `
 
-func (q *Queries) GetSecretById(ctx context.Context, id int64) (Secret, error) {
+func (q *Queries) GetSecretById(ctx context.Context, id string) (Secret, error) {
 	row := q.db.QueryRowContext(ctx, getSecretById, id)
-	var i Secret
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Value,
-		&i.CurrentVersion,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getSecretByName = `-- name: GetSecretByName :one
-SELECT id, name, value, current_version, created_at, updated_at FROM secrets
-WHERE name = ?1 LIMIT 1
-`
-
-func (q *Queries) GetSecretByName(ctx context.Context, name string) (Secret, error) {
-	row := q.db.QueryRowContext(ctx, getSecretByName, name)
 	var i Secret
 	err := row.Scan(
 		&i.ID,
@@ -104,4 +100,40 @@ func (q *Queries) ListSecrets(ctx context.Context) ([]Secret, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateSecret = `-- name: UpdateSecret :one
+UPDATE secrets SET
+    name = ?2,
+    value = ?3,
+    current_version = current_version + 1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?1 AND current_version = ?4
+RETURNING id, name, value, current_version, created_at, updated_at
+`
+
+type UpdateSecretParams struct {
+	ID             string
+	Name           string
+	Value          []byte
+	CurrentVersion int64
+}
+
+func (q *Queries) UpdateSecret(ctx context.Context, arg UpdateSecretParams) (Secret, error) {
+	row := q.db.QueryRowContext(ctx, updateSecret,
+		arg.ID,
+		arg.Name,
+		arg.Value,
+		arg.CurrentVersion,
+	)
+	var i Secret
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Value,
+		&i.CurrentVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

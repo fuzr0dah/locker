@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE secrets (
-  id INTEGER PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   value BLOB NOT NULL,
   current_version INTEGER NOT NULL DEFAULT 1,

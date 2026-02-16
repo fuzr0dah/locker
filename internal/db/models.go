@@ -9,7 +9,7 @@ import (
 )
 
 type Secret struct {
-	ID             int64
+	ID             string
 	Name           string
 	Value          []byte
 	CurrentVersion int64
@@ -19,7 +19,7 @@ type Secret struct {
 
 type SecretVersion struct {
 	ID        int64
-	SecretID  int64
+	SecretID  string
 	Version   int64
 	Value     []byte
 	CreatedAt time.Time

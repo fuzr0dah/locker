@@ -29,7 +29,7 @@ func respondWithError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 func badRequest(w http.ResponseWriter, r *http.Request, err string) {
-	apiErr := api.APIError{Code: api.ErrorBadRequest, Message: err}
+	apiErr := api.APIError{Code: api.ErrBadRequest, Message: err}
 	render.Status(r, http.StatusBadRequest)
 	render.JSON(w, r, apiErr)
 }

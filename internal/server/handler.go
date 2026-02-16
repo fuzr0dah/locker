@@ -11,5 +11,6 @@ func createHandler(router *router) http.Handler {
 	r.Get("/status", router.handleStatus)
 	r.Get("/secret/{id}", router.handleGetSecretByID)
 	r.Post("/secret", router.handleCreateSecret)
+	r.Put("/secret/{id}", router.handleUpdateSecret)
 	return r
 }
