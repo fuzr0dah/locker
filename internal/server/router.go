@@ -18,11 +18,6 @@ func newRouter(f facade.SecretsFacade) *router {
 	return &router{facade: f}
 }
 
-func (router *router) handleStatus(w http.ResponseWriter, r *http.Request) {
-	render.Status(r, http.StatusOK)
-	render.JSON(w, r, `{"status":"ok"}`)
-}
-
 func (router *router) handleCreateSecret(w http.ResponseWriter, r *http.Request) {
 	var req api.CreateSecretRequest
 	if err := decodeRequest(r, &req); err != nil {

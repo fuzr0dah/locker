@@ -33,6 +33,8 @@ func (f *CommandsFactory) NewRootCommand() *cobra.Command {
 	flags.BoolVarP(&showVersion, "version", "v", false, "Print version information and quit")
 
 	cmd.AddCommand(f.NewServerCommand())
+	cmd.AddCommand(f.NewCreateCommand())
+	cmd.AddCommand(f.NewReadCommand())
 
 	return cmd
 }

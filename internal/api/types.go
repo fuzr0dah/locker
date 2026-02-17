@@ -34,7 +34,14 @@ type UpdateSecretRequest struct {
 	Value string `json:"value"`
 }
 
+// TODO add validation function for name and value
 func (r *UpdateSecretRequest) Validate() error {
-	// TODO: add validation
+	if r.Name == "" {
+		// TODO add function for ErrBadRequest with return APIError
+		return APIError{Code: ErrBadRequest, Message: "name is required"}
+	}
+	if !json.Valid([]byte(r.Value)) {
+		return APIError{Code: ErrBadRequest, Message: "must be valid JSON"}
+	}
 	return nil
 }
