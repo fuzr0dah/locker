@@ -7,33 +7,33 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
 const createSecret = `-- name: CreateSecret :one
 INSERT INTO secrets (
-    id, name, value
+    id, name, version_id
 ) VALUES (
-    ?1, ?2, ?3
+    ?1, ?2, NULL
 )
-RETURNING id, name, value, current_version, created_at, updated_at
+RETURNING id, name, created_at, updated_at, version_id
 `
 
 type CreateSecretParams struct {
-	ID    string
-	Name  string
-	Value []byte
+	ID   string
+	Name string
 }
 
 func (q *Queries) CreateSecret(ctx context.Context, arg CreateSecretParams) (Secret, error) {
-	row := q.db.QueryRowContext(ctx, createSecret, arg.ID, arg.Name, arg.Value)
+	row := q.db.QueryRowContext(ctx, createSecret, arg.ID, arg.Name)
 	var i Secret
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Value,
-		&i.CurrentVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.VersionID,
 	)
 	return i, err
 }
@@ -49,26 +49,61 @@ func (q *Queries) DeleteSecret(ctx context.Context, id string) error {
 }
 
 const getSecretById = `-- name: GetSecretById :one
-SELECT id, name, value, current_version, created_at, updated_at FROM secrets
-WHERE id = ?1 LIMIT 1
+SELECT secrets.id, secrets.name, secrets.created_at, secrets.updated_at, secrets.version_id, secret_versions.value FROM secrets
+JOIN secret_versions ON secrets.version_id = secret_versions.id
+WHERE secrets.id = ?1 LIMIT 1
 `
 
-func (q *Queries) GetSecretById(ctx context.Context, id string) (Secret, error) {
+type GetSecretByIdRow struct {
+	ID        string
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	VersionID sql.NullInt64
+	Value     []byte
+}
+
+func (q *Queries) GetSecretById(ctx context.Context, id string) (GetSecretByIdRow, error) {
 	row := q.db.QueryRowContext(ctx, getSecretById, id)
+	var i GetSecretByIdRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.VersionID,
+		&i.Value,
+	)
+	return i, err
+}
+
+const insertVersionIntoSecret = `-- name: InsertVersionIntoSecret :one
+UPDATE secrets SET
+    version_id = ?2
+WHERE id = ?1 AND version_id IS NULL
+RETURNING id, name, created_at, updated_at, version_id
+`
+
+type InsertVersionIntoSecretParams struct {
+	ID        string
+	VersionID sql.NullInt64
+}
+
+func (q *Queries) InsertVersionIntoSecret(ctx context.Context, arg InsertVersionIntoSecretParams) (Secret, error) {
+	row := q.db.QueryRowContext(ctx, insertVersionIntoSecret, arg.ID, arg.VersionID)
 	var i Secret
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Value,
-		&i.CurrentVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.VersionID,
 	)
 	return i, err
 }
 
 const listSecrets = `-- name: ListSecrets :many
-SELECT id, name, value, current_version, created_at, updated_at FROM secrets
+SELECT id, name, created_at, updated_at, version_id FROM secrets
 ORDER BY name
 `
 
@@ -84,10 +119,9 @@ func (q *Queries) ListSecrets(ctx context.Context) ([]Secret, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
-			&i.Value,
-			&i.CurrentVersion,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.VersionID,
 		); err != nil {
 			return nil, err
 		}
@@ -104,36 +138,34 @@ func (q *Queries) ListSecrets(ctx context.Context) ([]Secret, error) {
 
 const updateSecret = `-- name: UpdateSecret :one
 UPDATE secrets SET
-    name = ?2,
-    value = ?3,
-    current_version = current_version + 1,
+    name = ?1,
+    version_id = ?2,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = ?1 AND current_version = ?4
-RETURNING id, name, value, current_version, created_at, updated_at
+WHERE id = ?3 AND version_id = ?4
+RETURNING id, name, created_at, updated_at, version_id
 `
 
 type UpdateSecretParams struct {
-	ID             string
-	Name           string
-	Value          []byte
-	CurrentVersion int64
+	Name         string
+	VersionID    sql.NullInt64
+	ID           string
+	OldVersionID sql.NullInt64
 }
 
 func (q *Queries) UpdateSecret(ctx context.Context, arg UpdateSecretParams) (Secret, error) {
 	row := q.db.QueryRowContext(ctx, updateSecret,
-		arg.ID,
 		arg.Name,
-		arg.Value,
-		arg.CurrentVersion,
+		arg.VersionID,
+		arg.ID,
+		arg.OldVersionID,
 	)
 	var i Secret
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Value,
-		&i.CurrentVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.VersionID,
 	)
 	return i, err
 }

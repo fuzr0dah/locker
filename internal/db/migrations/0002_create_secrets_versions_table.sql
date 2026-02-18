@@ -11,6 +11,3 @@ CREATE TABLE secret_versions (
 
 CREATE INDEX idx_secret_versions_secret_id ON secret_versions(secret_id);
 CREATE INDEX idx_secret_versions_created_at ON secret_versions(created_at);
-
--- +goose Down
-DROP TABLE IF EXISTS secret_versions;

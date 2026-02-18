@@ -68,18 +68,11 @@ func (router *router) handleUpdateSecret(w http.ResponseWriter, r *http.Request)
 
 func (router *router) handleDeleteSecret(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
-	var req api.UpdateSecretRequest
-	if err := decodeRequest(r, &req); err != nil {
-		badRequest(w, r, err.Error())
-		return
-	}
-
 	err := router.facade.DeleteSecret(r.Context(), idStr)
 	if err != nil {
 		respondWithError(w, r, err)
 		return
 	}
-
 	render.Status(r, http.StatusOK)
 }
 

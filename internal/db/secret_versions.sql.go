@@ -9,7 +9,34 @@ import (
 	"context"
 )
 
-const createSecretVersion = `-- name: CreateSecretVersion :one
+const createInitialVersion = `-- name: CreateInitialVersion :one
+INSERT INTO secret_versions (
+    secret_id, version, value
+) VALUES (
+    ?1, 1, ?2
+)
+RETURNING id, secret_id, version, value, created_at
+`
+
+type CreateInitialVersionParams struct {
+	SecretID string
+	Value    []byte
+}
+
+func (q *Queries) CreateInitialVersion(ctx context.Context, arg CreateInitialVersionParams) (SecretVersion, error) {
+	row := q.db.QueryRowContext(ctx, createInitialVersion, arg.SecretID, arg.Value)
+	var i SecretVersion
+	err := row.Scan(
+		&i.ID,
+		&i.SecretID,
+		&i.Version,
+		&i.Value,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createNextVersion = `-- name: CreateNextVersion :one
 INSERT INTO secret_versions (
     secret_id, version, value
 ) VALUES (
@@ -18,14 +45,34 @@ INSERT INTO secret_versions (
 RETURNING id, secret_id, version, value, created_at
 `
 
-type CreateSecretVersionParams struct {
+type CreateNextVersionParams struct {
 	SecretID string
 	Version  int64
 	Value    []byte
 }
 
-func (q *Queries) CreateSecretVersion(ctx context.Context, arg CreateSecretVersionParams) (SecretVersion, error) {
-	row := q.db.QueryRowContext(ctx, createSecretVersion, arg.SecretID, arg.Version, arg.Value)
+func (q *Queries) CreateNextVersion(ctx context.Context, arg CreateNextVersionParams) (SecretVersion, error) {
+	row := q.db.QueryRowContext(ctx, createNextVersion, arg.SecretID, arg.Version, arg.Value)
+	var i SecretVersion
+	err := row.Scan(
+		&i.ID,
+		&i.SecretID,
+		&i.Version,
+		&i.Value,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getLastVersionForSecretId = `-- name: GetLastVersionForSecretId :one
+SELECT id, secret_id, version, value, created_at FROM secret_versions 
+WHERE secret_id = ?1
+ORDER BY version DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLastVersionForSecretId(ctx context.Context, secretID string) (SecretVersion, error) {
+	row := q.db.QueryRowContext(ctx, getLastVersionForSecretId, secretID)
 	var i SecretVersion
 	err := row.Scan(
 		&i.ID,

@@ -49,16 +49,40 @@ func (s *inMemoryStorage) Close() error {
 
 // CreateSecret creates a new secret with the given name and value
 func (s *inMemoryStorage) CreateSecret(ctx context.Context, name string, value []byte) (*Secret, error) {
-	// TODO retry if generateSecretID make id with collisions
-	newId, err := generateSecretID()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("create secret: %w", err)
+		return nil, err
 	}
-	params := db.CreateSecretParams{ID: newId, Name: name, Value: value}
-	secret, err := s.queries.CreateSecret(ctx, params)
+	defer tx.Rollback()
+
+	// FIXME: retry if generateSecretID make id with collisions
+	secretID, err := generateSecretID()
 	if err != nil {
-		return nil, fmt.Errorf("create secret: %w", err)
+		return nil, fmt.Errorf("failed to generate secret id : %w", err)
 	}
+
+	_, err = s.queries.WithTx(tx).CreateSecret(ctx, db.CreateSecretParams{ID: secretID, Name: name})
+	if err != nil {
+		return nil, err
+	}
+
+	secretVersion, err := s.queries.WithTx(tx).CreateInitialVersion(ctx, db.CreateInitialVersionParams{SecretID: secretID, Value: value})
+	if err != nil {
+		return nil, err
+	}
+
+	secret, err := s.queries.WithTx(tx).InsertVersionIntoSecret(ctx, db.InsertVersionIntoSecretParams{
+		ID:        secretID,
+		VersionID: sql.NullInt64{Int64: secretVersion.ID, Valid: true},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
 	return fromDBSecret(secret), nil
 }
 
@@ -71,7 +95,7 @@ func (s *inMemoryStorage) GetSecretById(ctx context.Context, id string) (*Secret
 		}
 		return nil, fmt.Errorf("get secret: %w", err)
 	}
-	return fromDBSecret(secret), nil
+	return fromGetSecretByIdRow(secret), nil
 }
 
 // UpdateSecret updates the value of an existing secret
@@ -84,25 +108,25 @@ func (s *inMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 	}
 	defer tx.Rollback()
 
-	current, err := s.queries.WithTx(tx).GetSecretById(ctx, id)
+	currentVersion, err := s.queries.WithTx(tx).GetLastVersionForSecretId(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = s.queries.WithTx(tx).CreateSecretVersion(ctx, db.CreateSecretVersionParams{
-		SecretID: current.ID,
-		Version:  current.CurrentVersion,
-		Value:    current.Value,
+	newVersion, err := s.queries.WithTx(tx).CreateNextVersion(ctx, db.CreateNextVersionParams{
+		SecretID: id,
+		Version:  currentVersion.Version + 1,
+		Value:    value,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	updated, err := s.queries.WithTx(tx).UpdateSecret(ctx, db.UpdateSecretParams{
-		ID:             id,
-		Name:           name,
-		Value:          value,
-		CurrentVersion: current.CurrentVersion,
+		ID:           id,
+		Name:         name,
+		VersionID:    sql.NullInt64{Int64: newVersion.ID, Valid: true},
+		OldVersionID: sql.NullInt64{Int64: currentVersion.ID, Valid: true},
 	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrVersionConflict

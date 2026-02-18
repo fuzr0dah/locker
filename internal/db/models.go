@@ -5,16 +5,16 @@
 package db
 
 import (
+	"database/sql"
 	"time"
 )
 
 type Secret struct {
-	ID             string
-	Name           string
-	Value          []byte
-	CurrentVersion int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID        string
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	VersionID sql.NullInt64
 }
 
 type SecretVersion struct {
