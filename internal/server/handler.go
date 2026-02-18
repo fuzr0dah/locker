@@ -2,20 +2,22 @@ package server
 
 import (
 	"log/slog"
-	"net/http"
 
 	"github.com/fuzr0dah/locker/internal/api"
 	"github.com/go-chi/chi/v5"
 )
 
-func createHandler(router *router, logger *slog.Logger) http.Handler {
+func createHandler(router *router, logger *slog.Logger) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(loggerMiddleware(logger))
 
-	r.MethodFunc(api.CreateSecret.Method, api.CreateSecret.Path, router.handleCreateSecret)
-	r.MethodFunc(api.GetSecret.Method, api.GetSecret.Path, router.handleGetSecretByID)
-	r.MethodFunc(api.UpdateSecret.Method, api.UpdateSecret.Path, router.handleUpdateSecret)
+	r.MethodFunc(api.Secrets.Create.Method, api.Secrets.Create.Path, router.handleCreateSecret)
+	r.MethodFunc(api.Secrets.Get.Method, api.Secrets.Get.Path, router.handleGetSecretByID)
+	r.MethodFunc(api.Secrets.Update.Method, api.Secrets.Update.Path, router.handleUpdateSecret)
+	r.MethodFunc(api.Secrets.Delete.Method, api.Secrets.Delete.Path, router.handleDeleteSecret)
+
+	r.MethodFunc(api.Secrets.Versions.Get.Method, api.Secrets.Versions.Get.Path, router.handleGetSecretVersion)
 
 	return r
 }

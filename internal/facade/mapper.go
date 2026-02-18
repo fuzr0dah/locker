@@ -21,6 +21,19 @@ func mapToApiSecret(secret *secrets.Secret) *api.Secret {
 	}
 }
 
+func mapToApiSecretVersion(secretVersion *secrets.SecretVersion) *api.SecretVersion {
+	if secretVersion == nil {
+		return nil
+	}
+	return &api.SecretVersion{
+		ID:        secretVersion.ID,
+		SecretID:  secretVersion.SecretID,
+		Version:   secretVersion.Version,
+		Value:     string(secretVersion.Value),
+		CreatedAt: secretVersion.CreatedAt,
+	}
+}
+
 func mapToApiError(err error) error {
 	if err == nil {
 		return nil

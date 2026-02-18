@@ -14,6 +14,14 @@ type Secret struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type SecretVersion struct {
+	ID        int64     `json:"id"`
+	SecretID  string    `json:"secret_id"`
+	Version   int64     `json:"version"`
+	Value     string    `json:"value"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type CreateSecretRequest struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`

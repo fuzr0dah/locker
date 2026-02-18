@@ -2,6 +2,7 @@ package facade
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/fuzr0dah/locker/internal/api"
@@ -15,7 +16,8 @@ type SecretsFacade interface {
 	UpdateSecret(ctx context.Context, id, name, value string) (*api.Secret, error)
 	DeleteSecret(ctx context.Context, id string) error
 	ListSecrets(ctx context.Context) ([]*api.Secret, error)
-	GetSecretVersions(ctx context.Context, name string, limit int) ([]*secrets.SecretVersion, error)
+	GetSecretVersion(ctx context.Context, id string, version int) (*api.SecretVersion, error)
+	GetSecretVersions(ctx context.Context, id string, limit int) ([]*api.SecretVersion, error)
 }
 
 // facade implements SecretsFacade
@@ -25,7 +27,7 @@ type facade struct {
 }
 
 // NewFacade creates a facade
-func NewFacade(service secrets.SecretsService, logger *slog.Logger) SecretsFacade {
+func NewFacade(service secrets.SecretsService, logger *slog.Logger) *facade {
 	return &facade{
 		service: service,
 		logger:  logger,
@@ -93,6 +95,18 @@ func (f *facade) ListSecrets(ctx context.Context) ([]*api.Secret, error) {
 	return mapped, nil
 }
 
-func (f *facade) GetSecretVersions(ctx context.Context, name string, limit int) ([]*secrets.SecretVersion, error) {
-	return f.service.GetVersions(ctx, name, limit)
+func (f *facade) GetSecretVersion(ctx context.Context, id string, version int) (*api.SecretVersion, error) {
+	logger := f.logger.With("operation", "get_secret_version")
+	logger.Info("retrieving secret version", "id", id, "version", version)
+	secretVersion, err := f.service.GetVersion(ctx, id, version)
+	if err != nil {
+		logger.Error("failed to get secret version", "error", err)
+		return nil, mapToApiError(err)
+	}
+	logger.Info("secret version retrieved", "id", secretVersion.ID, "secret_id", id, "version", version)
+	return mapToApiSecretVersion(secretVersion), nil
+}
+
+func (f *facade) GetSecretVersions(ctx context.Context, id string, limit int) ([]*api.SecretVersion, error) {
+	return nil, fmt.Errorf("not implemented")
 }

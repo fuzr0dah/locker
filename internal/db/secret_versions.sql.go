@@ -9,7 +9,7 @@ import (
 	"context"
 )
 
-const insertSecretVersion = `-- name: InsertSecretVersion :one
+const createSecretVersion = `-- name: CreateSecretVersion :one
 INSERT INTO secret_versions (
     secret_id, version, value
 ) VALUES (
@@ -18,14 +18,37 @@ INSERT INTO secret_versions (
 RETURNING id, secret_id, version, value, created_at
 `
 
-type InsertSecretVersionParams struct {
+type CreateSecretVersionParams struct {
 	SecretID string
 	Version  int64
 	Value    []byte
 }
 
-func (q *Queries) InsertSecretVersion(ctx context.Context, arg InsertSecretVersionParams) (SecretVersion, error) {
-	row := q.db.QueryRowContext(ctx, insertSecretVersion, arg.SecretID, arg.Version, arg.Value)
+func (q *Queries) CreateSecretVersion(ctx context.Context, arg CreateSecretVersionParams) (SecretVersion, error) {
+	row := q.db.QueryRowContext(ctx, createSecretVersion, arg.SecretID, arg.Version, arg.Value)
+	var i SecretVersion
+	err := row.Scan(
+		&i.ID,
+		&i.SecretID,
+		&i.Version,
+		&i.Value,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getSecretVersion = `-- name: GetSecretVersion :one
+SELECT id, secret_id, version, value, created_at FROM secret_versions
+WHERE secret_id = ?1 AND version = ?2 LIMIT 1
+`
+
+type GetSecretVersionParams struct {
+	SecretID string
+	Version  int64
+}
+
+func (q *Queries) GetSecretVersion(ctx context.Context, arg GetSecretVersionParams) (SecretVersion, error) {
+	row := q.db.QueryRowContext(ctx, getSecretVersion, arg.SecretID, arg.Version)
 	var i SecretVersion
 	err := row.Scan(
 		&i.ID,

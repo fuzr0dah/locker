@@ -12,8 +12,8 @@ import (
 	_ "github.com/ncruces/go-sqlite3/embed"
 )
 
-// InMemoryStorage implements Storage interface using SQLite in-memory mode
-type InMemoryStorage struct {
+// inMemoryStorage implements Storage interface using SQLite in-memory mode
+type inMemoryStorage struct {
 	db      *sql.DB
 	queries *db.Queries
 }
@@ -32,15 +32,15 @@ func OpenDB() (*sql.DB, error) {
 }
 
 // NewStorage creates a new storage instance from an existing database connection
-func NewStorage(conn *sql.DB) Storage {
-	return &InMemoryStorage{
+func NewStorage(conn *sql.DB) *inMemoryStorage {
+	return &inMemoryStorage{
 		db:      conn,
 		queries: db.New(conn),
 	}
 }
 
 // Close closes the storage connection
-func (s *InMemoryStorage) Close() error {
+func (s *inMemoryStorage) Close() error {
 	if s.db != nil {
 		return s.db.Close()
 	}
@@ -48,7 +48,7 @@ func (s *InMemoryStorage) Close() error {
 }
 
 // CreateSecret creates a new secret with the given name and value
-func (s *InMemoryStorage) CreateSecret(ctx context.Context, name string, value []byte) (*Secret, error) {
+func (s *inMemoryStorage) CreateSecret(ctx context.Context, name string, value []byte) (*Secret, error) {
 	// TODO retry if generateSecretID make id with collisions
 	newId, err := generateSecretID()
 	if err != nil {
@@ -63,7 +63,7 @@ func (s *InMemoryStorage) CreateSecret(ctx context.Context, name string, value [
 }
 
 // GetSecretById retrieves a secret by id
-func (s *InMemoryStorage) GetSecretById(ctx context.Context, id string) (*Secret, error) {
+func (s *inMemoryStorage) GetSecretById(ctx context.Context, id string) (*Secret, error) {
 	secret, err := s.queries.GetSecretById(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -75,7 +75,7 @@ func (s *InMemoryStorage) GetSecretById(ctx context.Context, id string) (*Secret
 }
 
 // UpdateSecret updates the value of an existing secret
-func (s *InMemoryStorage) UpdateSecret(ctx context.Context, id, name string, value []byte) (*Secret, error) {
+func (s *inMemoryStorage) UpdateSecret(ctx context.Context, id, name string, value []byte) (*Secret, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{
 		Isolation: sql.LevelSerializable,
 	})
@@ -89,7 +89,7 @@ func (s *InMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 		return nil, err
 	}
 
-	_, err = s.queries.WithTx(tx).InsertSecretVersion(ctx, db.InsertSecretVersionParams{
+	_, err = s.queries.WithTx(tx).CreateSecretVersion(ctx, db.CreateSecretVersionParams{
 		SecretID: current.ID,
 		Version:  current.CurrentVersion,
 		Value:    current.Value,
@@ -119,12 +119,12 @@ func (s *InMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 }
 
 // DeleteSecret removes a secret and all its versions (CASCADE)
-func (s *InMemoryStorage) DeleteSecret(ctx context.Context, id string) error {
+func (s *inMemoryStorage) DeleteSecret(ctx context.Context, id string) error {
 	return s.queries.DeleteSecret(ctx, id)
 }
 
-// ListSecrets returns all secrets (without values for performance)
-func (s *InMemoryStorage) ListSecrets(ctx context.Context) ([]*Secret, error) {
+// ListSecrets returns all secrets
+func (s *inMemoryStorage) ListSecrets(ctx context.Context) ([]*Secret, error) {
 	list, err := s.queries.ListSecrets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list secrets: %w", err)
@@ -139,13 +139,16 @@ func (s *InMemoryStorage) ListSecrets(ctx context.Context) ([]*Secret, error) {
 }
 
 // GetSecretVersions returns version history for a secret
-func (s *InMemoryStorage) GetSecretVersion(ctx context.Context, id string, version int) (*SecretVersion, error) {
-	// TODO: implement using sqlc queries
-	return nil, errors.New("not implemented")
+func (s *inMemoryStorage) GetSecretVersion(ctx context.Context, id string, version int) (*SecretVersion, error) {
+	secretVersion, err := s.queries.GetSecretVersion(ctx, db.GetSecretVersionParams{SecretID: id, Version: int64(version)})
+	if err != nil {
+		return nil, fmt.Errorf("get version: %w", err)
+	}
+	return fromDBSecretVersion(secretVersion), nil
 }
 
 // GetSecretVersion returns a specific version of a secret
-func (s *InMemoryStorage) GetSecretVersions(ctx context.Context, id string, limit int) ([]*SecretVersion, error) {
+func (s *inMemoryStorage) GetSecretVersions(ctx context.Context, id string, limit int) ([]*SecretVersion, error) {
 	// TODO: implement using sqlc queries
 	return nil, errors.New("not implemented")
 }

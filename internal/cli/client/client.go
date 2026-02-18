@@ -32,14 +32,14 @@ func (c *Client) url(endpoint api.Endpoint) string {
 }
 
 func (c *Client) CreateSecret(ctx context.Context, req *api.CreateSecretRequest) (*api.Secret, error) {
-	url := c.url(api.CreateSecret)
+	url := c.url(api.Secrets.Create)
 
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, api.CreateSecret.Method, url, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, api.Secrets.Create.Method, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -64,9 +64,9 @@ func (c *Client) CreateSecret(ctx context.Context, req *api.CreateSecretRequest)
 
 func (c *Client) GetSecret(ctx context.Context, id string) (*api.Secret, error) {
 	// TODO: multi-param support
-	url := strings.Replace(c.url(api.GetSecret), "{id}", id, 1)
+	url := strings.Replace(c.url(api.Secrets.Get), "{id}", id, 1)
 
-	httpReq, err := http.NewRequestWithContext(ctx, api.GetSecret.Method, url, nil)
+	httpReq, err := http.NewRequestWithContext(ctx, api.Secrets.Get.Method, url, nil)
 	if err != nil {
 		return nil, err
 	}

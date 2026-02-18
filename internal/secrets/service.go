@@ -11,8 +11,8 @@ type SecretsService interface {
 	Update(ctx context.Context, id, name, value string) (*Secret, error)
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context) ([]*Secret, error)
-	GetVersions(ctx context.Context, name string, limit int) ([]*SecretVersion, error)
-	GetVersion(ctx context.Context, name string, version int) (*SecretVersion, error)
+	GetVersion(ctx context.Context, id string, version int) (*SecretVersion, error)
+	GetVersions(ctx context.Context, id string, limit int) ([]*SecretVersion, error)
 }
 
 // Service handles business logic for secrets
@@ -21,7 +21,7 @@ type service struct {
 }
 
 // NewService creates a new secrets service
-func NewService(storage Storage) SecretsService {
+func NewService(storage Storage) *service {
 	return &service{storage: storage}
 }
 
@@ -69,20 +69,20 @@ func (s *service) List(ctx context.Context) ([]*Secret, error) {
 	return secrets, nil
 }
 
+// GetVersion returns a specific version of a secret
+func (s *service) GetVersion(ctx context.Context, id string, version int) (*SecretVersion, error) {
+	secretVersion, err := s.storage.GetSecretVersion(ctx, id, version)
+	if err != nil {
+		return nil, fmt.Errorf("get version: %w", err)
+	}
+	return secretVersion, nil
+}
+
 // GetVersions returns version history for a secret
-func (s *service) GetVersions(ctx context.Context, name string, limit int) ([]*SecretVersion, error) {
-	versions, err := s.storage.GetSecretVersions(ctx, name, limit)
+func (s *service) GetVersions(ctx context.Context, id string, limit int) ([]*SecretVersion, error) {
+	versions, err := s.storage.GetSecretVersions(ctx, id, limit)
 	if err != nil {
 		return nil, fmt.Errorf("get versions: %w", err)
 	}
 	return versions, nil
-}
-
-// GetVersion returns a specific version of a secret
-func (s *service) GetVersion(ctx context.Context, name string, version int) (*SecretVersion, error) {
-	v, err := s.storage.GetSecretVersion(ctx, name, version)
-	if err != nil {
-		return nil, fmt.Errorf("get version: %w", err)
-	}
-	return v, nil
 }

@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/fuzr0dah/locker/internal/api"
 	"github.com/fuzr0dah/locker/internal/facade"
@@ -56,6 +57,43 @@ func (router *router) handleUpdateSecret(w http.ResponseWriter, r *http.Request)
 	}
 
 	secret, err := router.facade.UpdateSecret(r.Context(), idStr, req.Name, req.Value)
+	if err != nil {
+		respondWithError(w, r, err)
+		return
+	}
+
+	render.Status(r, http.StatusOK)
+	render.JSON(w, r, secret)
+}
+
+func (router *router) handleDeleteSecret(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	var req api.UpdateSecretRequest
+	if err := decodeRequest(r, &req); err != nil {
+		badRequest(w, r, err.Error())
+		return
+	}
+
+	err := router.facade.DeleteSecret(r.Context(), idStr)
+	if err != nil {
+		respondWithError(w, r, err)
+		return
+	}
+
+	render.Status(r, http.StatusOK)
+}
+
+func (router *router) handleGetSecretVersion(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	versionStr := chi.URLParam(r, "version")
+
+	version, err := strconv.Atoi(versionStr)
+	if err != nil {
+		badRequest(w, r, err.Error())
+		return
+	}
+
+	secret, err := router.facade.GetSecretVersion(r.Context(), idStr, int(version))
 	if err != nil {
 		respondWithError(w, r, err)
 		return
