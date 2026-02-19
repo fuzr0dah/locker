@@ -10,13 +10,15 @@ import (
 	"github.com/fuzr0dah/locker/internal/crypto"
 	"github.com/fuzr0dah/locker/internal/db/migrations"
 	"github.com/fuzr0dah/locker/internal/facade"
-	"github.com/fuzr0dah/locker/internal/secrets"
+	"github.com/fuzr0dah/locker/internal/service"
+	"github.com/fuzr0dah/locker/internal/storage"
+	"github.com/fuzr0dah/locker/internal/storage/sqlite"
 )
 
 type Server struct {
 	httpServer *http.Server
 	logger     *slog.Logger
-	storage    secrets.Storage
+	storage    storage.SecretStorage
 }
 
 func NewServer(logger *slog.Logger) (*Server, error) {
@@ -26,7 +28,7 @@ func NewServer(logger *slog.Logger) (*Server, error) {
 	logger.Info("initializing server", "addr", ":8080")
 	logger.Info("master key generated", "key", crypto.GenerateMasterKey())
 
-	db, err := secrets.OpenDB()
+	db, err := sqlite.OpenDB("")
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
@@ -36,11 +38,11 @@ func NewServer(logger *slog.Logger) (*Server, error) {
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
-	storage := secrets.NewStorage(db)
-	service := secrets.NewService(storage)
+	storage := sqlite.NewStorage(db)
+	svc := service.NewSecretsService(storage)
 
 	facadeLogger := logger.With("component", "facade")
-	facade := facade.NewFacade(service, facadeLogger)
+	facade := facade.NewFacade(svc, facadeLogger)
 
 	handlerLogger := logger.With("component", "handler")
 	router := newRouter(facade)

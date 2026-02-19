@@ -1,4 +1,4 @@
-package secrets
+package sqlite
 
 import (
 	"crypto/rand"

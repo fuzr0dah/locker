@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/fuzr0dah/locker/internal/api"
-	"github.com/fuzr0dah/locker/internal/secrets"
+	"github.com/fuzr0dah/locker/internal/service"
 )
 
 // SecretsFacade provides high-level operations for secrets management
@@ -22,12 +22,12 @@ type SecretsFacade interface {
 
 // facade implements SecretsFacade
 type facade struct {
-	service secrets.SecretsService
+	service service.SecretsService
 	logger  *slog.Logger
 }
 
 // NewFacade creates a facade
-func NewFacade(service secrets.SecretsService, logger *slog.Logger) *facade {
+func NewFacade(service service.SecretsService, logger *slog.Logger) *facade {
 	return &facade{
 		service: service,
 		logger:  logger,

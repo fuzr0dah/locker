@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/fuzr0dah/locker/internal/api"
-	"github.com/fuzr0dah/locker/internal/secrets"
+	"github.com/fuzr0dah/locker/internal/domain"
 )
 
-func mapToApiSecret(secret *secrets.Secret) *api.Secret {
+func mapToApiSecret(secret *domain.Secret) *api.Secret {
 	if secret == nil {
 		return nil
 	}
@@ -21,7 +21,7 @@ func mapToApiSecret(secret *secrets.Secret) *api.Secret {
 	}
 }
 
-func mapToApiSecretVersion(secretVersion *secrets.SecretVersion) *api.SecretVersion {
+func mapToApiSecretVersion(secretVersion *domain.SecretVersion) *api.SecretVersion {
 	if secretVersion == nil {
 		return nil
 	}
@@ -39,9 +39,9 @@ func mapToApiError(err error) error {
 		return nil
 	}
 	switch {
-	case errors.Is(err, secrets.ErrSecretNotFound):
+	case errors.Is(err, domain.ErrSecretNotFound):
 		return api.SecretNotFoundErr
-	case errors.Is(err, secrets.ErrVersionConflict):
+	case errors.Is(err, domain.ErrVersionConflict):
 		return api.SecretVersionConflictErr
 	default:
 		return api.InternalErr

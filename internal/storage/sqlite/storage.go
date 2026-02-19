@@ -1,4 +1,4 @@
-package secrets
+package sqlite
 
 import (
 	"context"
@@ -7,40 +7,28 @@ import (
 	"fmt"
 
 	"github.com/fuzr0dah/locker/internal/db"
+	"github.com/fuzr0dah/locker/internal/domain"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
 )
 
-// inMemoryStorage implements Storage interface using SQLite in-memory mode
-type inMemoryStorage struct {
+// Storage implements storage.Storage interface using SQLite
+type Storage struct {
 	db      *sql.DB
 	queries *db.Queries
 }
 
-// OpenDB opens a new SQLite in-memory database connection
-func OpenDB() (*sql.DB, error) {
-	conn, err := sql.Open("sqlite3", "file::memory:?cache=shared&_fk=on&_journal_mode=WAL&_busy_timeout=5000")
-
-	conn.SetMaxOpenConns(1)
-	conn.SetMaxIdleConns(1)
-
-	if err != nil {
-		return nil, fmt.Errorf("open sqlite: %w", err)
-	}
-	return conn, nil
-}
-
-// NewStorage creates a new storage instance from an existing database connection
-func NewStorage(conn *sql.DB) *inMemoryStorage {
-	return &inMemoryStorage{
+// NewStorage creates a new SQLite storage instance from an existing database connection
+func NewStorage(conn *sql.DB) *Storage {
+	return &Storage{
 		db:      conn,
 		queries: db.New(conn),
 	}
 }
 
 // Close closes the storage connection
-func (s *inMemoryStorage) Close() error {
+func (s *Storage) Close() error {
 	if s.db != nil {
 		return s.db.Close()
 	}
@@ -48,14 +36,13 @@ func (s *inMemoryStorage) Close() error {
 }
 
 // CreateSecret creates a new secret with the given name and value
-func (s *inMemoryStorage) CreateSecret(ctx context.Context, name string, value []byte) (*Secret, error) {
+func (s *Storage) CreateSecret(ctx context.Context, name string, value []byte) (*domain.Secret, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	// FIXME: retry if generateSecretID make id with collisions
 	secretID, err := generateSecretID()
 	if err != nil {
 		return nil, fmt.Errorf("generate secret id: %w", err)
@@ -87,11 +74,11 @@ func (s *inMemoryStorage) CreateSecret(ctx context.Context, name string, value [
 }
 
 // GetSecretById retrieves a secret by id
-func (s *inMemoryStorage) GetSecretById(ctx context.Context, id string) (*Secret, error) {
+func (s *Storage) GetSecretById(ctx context.Context, id string) (*domain.Secret, error) {
 	secret, err := s.queries.GetSecretById(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrSecretNotFound
+			return nil, domain.ErrSecretNotFound
 		}
 		return nil, fmt.Errorf("get secret: %w", err)
 	}
@@ -99,7 +86,7 @@ func (s *inMemoryStorage) GetSecretById(ctx context.Context, id string) (*Secret
 }
 
 // UpdateSecret updates the value of an existing secret
-func (s *inMemoryStorage) UpdateSecret(ctx context.Context, id, name string, value []byte) (*Secret, error) {
+func (s *Storage) UpdateSecret(ctx context.Context, id, name string, value []byte) (*domain.Secret, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{
 		Isolation: sql.LevelSerializable,
 	})
@@ -111,7 +98,7 @@ func (s *inMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 	currentVersion, err := s.queries.WithTx(tx).GetLastVersionForSecretId(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrSecretNotFound
+			return nil, domain.ErrSecretNotFound
 		}
 		return nil, fmt.Errorf("get current version: %w", err)
 	}
@@ -132,7 +119,7 @@ func (s *inMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 		OldVersionID: sql.NullInt64{Int64: currentVersion.ID, Valid: true},
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrVersionConflict
+		return nil, domain.ErrVersionConflict
 	}
 	if err != nil {
 		return nil, fmt.Errorf("update secret: %w", err)
@@ -146,10 +133,10 @@ func (s *inMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 }
 
 // DeleteSecret removes a secret and all its versions (CASCADE)
-func (s *inMemoryStorage) DeleteSecret(ctx context.Context, id string) error {
+func (s *Storage) DeleteSecret(ctx context.Context, id string) error {
 	err := s.queries.DeleteSecret(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return ErrSecretNotFound
+		return domain.ErrSecretNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("delete secret: %w", err)
@@ -158,34 +145,34 @@ func (s *inMemoryStorage) DeleteSecret(ctx context.Context, id string) error {
 }
 
 // ListSecrets returns all secrets
-func (s *inMemoryStorage) ListSecrets(ctx context.Context) ([]*Secret, error) {
+func (s *Storage) ListSecrets(ctx context.Context) ([]*domain.Secret, error) {
 	list, err := s.queries.ListSecrets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list secrets: %w", err)
 	}
 
-	secrets := make([]*Secret, len(list))
+	secretList := make([]*domain.Secret, len(list))
 	for i := range list {
-		secrets[i] = fromDBSecret(list[i])
+		secretList[i] = fromDBSecret(list[i])
 	}
 
-	return secrets, nil
+	return secretList, nil
 }
 
-// GetSecretVersions returns version history for a secret
-func (s *inMemoryStorage) GetSecretVersion(ctx context.Context, id string, version int) (*SecretVersion, error) {
+// GetSecretVersion returns a specific version of a secret
+func (s *Storage) GetSecretVersion(ctx context.Context, id string, version int) (*domain.SecretVersion, error) {
 	secretVersion, err := s.queries.GetSecretVersion(ctx, db.GetSecretVersionParams{SecretID: id, Version: int64(version)})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrSecretNotFound
+			return nil, domain.ErrSecretNotFound
 		}
 		return nil, fmt.Errorf("get secret version: %w", err)
 	}
 	return fromDBSecretVersion(secretVersion), nil
 }
 
-// GetSecretVersion returns a specific version of a secret
-func (s *inMemoryStorage) GetSecretVersions(ctx context.Context, id string, limit int) ([]*SecretVersion, error) {
+// GetSecretVersions returns version history for a secret
+func (s *Storage) GetSecretVersions(ctx context.Context, id string, limit int) ([]*domain.SecretVersion, error) {
 	// TODO: implement using sqlc queries
 	return nil, errors.New("not implemented")
 }
