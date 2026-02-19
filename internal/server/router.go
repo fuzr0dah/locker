@@ -22,7 +22,7 @@ func newRouter(f facade.SecretsFacade) *router {
 func (router *router) handleCreateSecret(w http.ResponseWriter, r *http.Request) {
 	var req api.CreateSecretRequest
 	if err := decodeRequest(r, &req); err != nil {
-		badRequest(w, r, err.Error())
+		respondWithError(w, r, err)
 		return
 	}
 
@@ -37,8 +37,13 @@ func (router *router) handleCreateSecret(w http.ResponseWriter, r *http.Request)
 }
 
 func (router *router) handleGetSecretByID(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	secret, err := router.facade.GetSecretById(r.Context(), idStr)
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		badRequest(w, r, "id is required")
+		return
+	}
+
+	secret, err := router.facade.GetSecretById(r.Context(), id)
 	if err != nil {
 		respondWithError(w, r, err)
 		return
@@ -49,14 +54,19 @@ func (router *router) handleGetSecretByID(w http.ResponseWriter, r *http.Request
 }
 
 func (router *router) handleUpdateSecret(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	var req api.UpdateSecretRequest
-	if err := decodeRequest(r, &req); err != nil {
-		badRequest(w, r, err.Error())
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		badRequest(w, r, "id is required")
 		return
 	}
 
-	secret, err := router.facade.UpdateSecret(r.Context(), idStr, req.Name, req.Value)
+	var req api.UpdateSecretRequest
+	if err := decodeRequest(r, &req); err != nil {
+		respondWithError(w, r, err)
+		return
+	}
+
+	secret, err := router.facade.UpdateSecret(r.Context(), id, req.Name, req.Value)
 	if err != nil {
 		respondWithError(w, r, err)
 		return
@@ -67,26 +77,35 @@ func (router *router) handleUpdateSecret(w http.ResponseWriter, r *http.Request)
 }
 
 func (router *router) handleDeleteSecret(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	err := router.facade.DeleteSecret(r.Context(), idStr)
-	if err != nil {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		badRequest(w, r, "id is required")
+		return
+	}
+
+	if err := router.facade.DeleteSecret(r.Context(), id); err != nil {
 		respondWithError(w, r, err)
 		return
 	}
-	render.Status(r, http.StatusOK)
+
+	render.Status(r, http.StatusNoContent)
 }
 
 func (router *router) handleGetSecretVersion(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	versionStr := chi.URLParam(r, "version")
-
-	version, err := strconv.Atoi(versionStr)
-	if err != nil {
-		badRequest(w, r, err.Error())
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		badRequest(w, r, "id is required")
 		return
 	}
 
-	secret, err := router.facade.GetSecretVersion(r.Context(), idStr, int(version))
+	versionStr := chi.URLParam(r, "version")
+	version, err := strconv.Atoi(versionStr)
+	if err != nil || version <= 0 {
+		badRequest(w, r, "version must be a positive integer")
+		return
+	}
+
+	secret, err := router.facade.GetSecretVersion(r.Context(), id, version)
 	if err != nil {
 		respondWithError(w, r, err)
 		return

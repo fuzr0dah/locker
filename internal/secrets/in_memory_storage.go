@@ -51,24 +51,24 @@ func (s *inMemoryStorage) Close() error {
 func (s *inMemoryStorage) CreateSecret(ctx context.Context, name string, value []byte) (*Secret, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	// FIXME: retry if generateSecretID make id with collisions
 	secretID, err := generateSecretID()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate secret id : %w", err)
+		return nil, fmt.Errorf("generate secret id: %w", err)
 	}
 
 	_, err = s.queries.WithTx(tx).CreateSecret(ctx, db.CreateSecretParams{ID: secretID, Name: name})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create secret record: %w", err)
 	}
 
 	secretVersion, err := s.queries.WithTx(tx).CreateInitialVersion(ctx, db.CreateInitialVersionParams{SecretID: secretID, Value: value})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create initial version: %w", err)
 	}
 
 	secret, err := s.queries.WithTx(tx).InsertVersionIntoSecret(ctx, db.InsertVersionIntoSecretParams{
@@ -76,11 +76,11 @@ func (s *inMemoryStorage) CreateSecret(ctx context.Context, name string, value [
 		VersionID: sql.NullInt64{Int64: secretVersion.ID, Valid: true},
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("link version to secret: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("commit transaction: %w", err)
 	}
 
 	return fromDBSecret(secret), nil
@@ -104,13 +104,16 @@ func (s *inMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 		Isolation: sql.LevelSerializable,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	currentVersion, err := s.queries.WithTx(tx).GetLastVersionForSecretId(ctx, id)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrSecretNotFound
+		}
+		return nil, fmt.Errorf("get current version: %w", err)
 	}
 
 	newVersion, err := s.queries.WithTx(tx).CreateNextVersion(ctx, db.CreateNextVersionParams{
@@ -119,7 +122,7 @@ func (s *inMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 		Value:    value,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create new version: %w", err)
 	}
 
 	updated, err := s.queries.WithTx(tx).UpdateSecret(ctx, db.UpdateSecretParams{
@@ -132,11 +135,11 @@ func (s *inMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 		return nil, ErrVersionConflict
 	}
 	if err != nil {
-		return nil, fmt.Errorf("update: %w", err)
+		return nil, fmt.Errorf("update secret: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("commit transaction: %w", err)
 	}
 
 	return fromDBSecret(updated), nil
@@ -144,7 +147,14 @@ func (s *inMemoryStorage) UpdateSecret(ctx context.Context, id, name string, val
 
 // DeleteSecret removes a secret and all its versions (CASCADE)
 func (s *inMemoryStorage) DeleteSecret(ctx context.Context, id string) error {
-	return s.queries.DeleteSecret(ctx, id)
+	err := s.queries.DeleteSecret(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrSecretNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("delete secret: %w", err)
+	}
+	return nil
 }
 
 // ListSecrets returns all secrets
@@ -166,7 +176,10 @@ func (s *inMemoryStorage) ListSecrets(ctx context.Context) ([]*Secret, error) {
 func (s *inMemoryStorage) GetSecretVersion(ctx context.Context, id string, version int) (*SecretVersion, error) {
 	secretVersion, err := s.queries.GetSecretVersion(ctx, db.GetSecretVersionParams{SecretID: id, Version: int64(version)})
 	if err != nil {
-		return nil, fmt.Errorf("get version: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrSecretNotFound
+		}
+		return nil, fmt.Errorf("get secret version: %w", err)
 	}
 	return fromDBSecretVersion(secretVersion), nil
 }
