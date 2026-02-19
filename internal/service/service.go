@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/fuzr0dah/locker/internal/domain"
 	"github.com/fuzr0dah/locker/internal/storage"
@@ -20,26 +21,56 @@ type SecretsService interface {
 
 // secretsService handles business logic for secrets
 type secretsService struct {
-	storage storage.SecretStorage
+	reader     storage.SecretReader
+	uowFactory func() storage.UnitOfWork
+	logger     *slog.Logger
 }
 
 // NewSecretsService creates a new secrets service
-func NewSecretsService(s storage.SecretStorage) SecretsService {
-	return &secretsService{storage: s}
+func NewSecretsService(reader storage.SecretReader, uowFactory func() storage.UnitOfWork, logger *slog.Logger) SecretsService {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &secretsService{
+		reader:     reader,
+		uowFactory: uowFactory,
+		logger:     logger,
+	}
 }
 
 // Create creates a new secret
 func (s *secretsService) Create(ctx context.Context, name string, value string) (*domain.Secret, error) {
-	secret, err := s.storage.CreateSecret(ctx, name, []byte(value))
-	if err != nil {
-		return nil, fmt.Errorf("create secret: %w", err)
+	uow := s.uowFactory()
+	if err := uow.Begin(ctx); err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
+
+	var secret *domain.Secret
+	var opErr error
+
+	defer func() {
+		if opErr != nil {
+			if rbErr := uow.Rollback(); rbErr != nil {
+				s.logger.Error("failed to rollback transaction", "error", rbErr)
+			}
+		}
+	}()
+
+	secret, opErr = uow.Secrets().CreateSecret(ctx, name, []byte(value))
+	if opErr != nil {
+		return nil, fmt.Errorf("create secret: %w", opErr)
+	}
+
+	if err := uow.Commit(); err != nil {
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
+
 	return secret, nil
 }
 
 // GetById retrieves a secret by id
 func (s *secretsService) GetById(ctx context.Context, id string) (*domain.Secret, error) {
-	secret, err := s.storage.GetSecretById(ctx, id)
+	secret, err := s.reader.GetSecretById(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get secret: %w", err)
 	}
@@ -48,24 +79,66 @@ func (s *secretsService) GetById(ctx context.Context, id string) (*domain.Secret
 
 // Update updates a secret value (creates new version)
 func (s *secretsService) Update(ctx context.Context, id, name, value string) (*domain.Secret, error) {
-	secret, err := s.storage.UpdateSecret(ctx, id, name, []byte(value))
-	if err != nil {
-		return nil, fmt.Errorf("update secret: %w", err)
+	uow := s.uowFactory()
+	if err := uow.Begin(ctx); err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
+
+	var secret *domain.Secret
+	var opErr error
+
+	defer func() {
+		if opErr != nil {
+			if rbErr := uow.Rollback(); rbErr != nil {
+				s.logger.Error("failed to rollback transaction", "error", rbErr)
+			}
+		}
+	}()
+
+	secret, opErr = uow.Secrets().UpdateSecret(ctx, id, name, []byte(value))
+	if opErr != nil {
+		return nil, fmt.Errorf("update secret: %w", opErr)
+	}
+
+	if err := uow.Commit(); err != nil {
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
+
 	return secret, nil
 }
 
 // Delete removes a secret
 func (s *secretsService) Delete(ctx context.Context, id string) error {
-	if err := s.storage.DeleteSecret(ctx, id); err != nil {
-		return fmt.Errorf("delete secret: %w", err)
+	uow := s.uowFactory()
+	if err := uow.Begin(ctx); err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
 	}
+
+	var opErr error
+
+	defer func() {
+		if opErr != nil {
+			if rbErr := uow.Rollback(); rbErr != nil {
+				s.logger.Error("failed to rollback transaction", "error", rbErr)
+			}
+		}
+	}()
+
+	opErr = uow.Secrets().DeleteSecret(ctx, id)
+	if opErr != nil {
+		return fmt.Errorf("delete secret: %w", opErr)
+	}
+
+	if err := uow.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
 	return nil
 }
 
 // List returns all secrets (without values)
 func (s *secretsService) List(ctx context.Context) ([]*domain.Secret, error) {
-	secrets, err := s.storage.ListSecrets(ctx)
+	secrets, err := s.reader.ListSecrets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list secrets: %w", err)
 	}
@@ -74,7 +147,7 @@ func (s *secretsService) List(ctx context.Context) ([]*domain.Secret, error) {
 
 // GetVersion returns a specific version of a secret
 func (s *secretsService) GetVersion(ctx context.Context, id string, version int) (*domain.SecretVersion, error) {
-	secretVersion, err := s.storage.GetSecretVersion(ctx, id, version)
+	secretVersion, err := s.reader.GetSecretVersion(ctx, id, version)
 	if err != nil {
 		return nil, fmt.Errorf("get version: %w", err)
 	}
@@ -83,7 +156,7 @@ func (s *secretsService) GetVersion(ctx context.Context, id string, version int)
 
 // GetVersions returns version history for a secret
 func (s *secretsService) GetVersions(ctx context.Context, id string, limit int) ([]*domain.SecretVersion, error) {
-	versions, err := s.storage.GetSecretVersions(ctx, id, limit)
+	versions, err := s.reader.GetSecretVersions(ctx, id, limit)
 	if err != nil {
 		return nil, fmt.Errorf("get versions: %w", err)
 	}

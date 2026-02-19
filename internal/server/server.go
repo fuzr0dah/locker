@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,7 +19,7 @@ import (
 type Server struct {
 	httpServer *http.Server
 	logger     *slog.Logger
-	storage    storage.SecretStorage
+	db         *sql.DB
 }
 
 func NewServer(logger *slog.Logger) (*Server, error) {
@@ -38,8 +39,11 @@ func NewServer(logger *slog.Logger) (*Server, error) {
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
-	storage := sqlite.NewStorage(db)
-	svc := service.NewSecretsService(storage)
+	reader := sqlite.NewSecretReader(db)
+	uowFactory := func() storage.UnitOfWork {
+		return sqlite.NewUnitOfWork(db)
+	}
+	svc := service.NewSecretsService(reader, uowFactory, logger)
 
 	facadeLogger := logger.With("component", "facade")
 	facade := facade.NewFacade(svc, facadeLogger)
@@ -53,8 +57,8 @@ func NewServer(logger *slog.Logger) (*Server, error) {
 			Addr:    ":8080",
 			Handler: handler,
 		},
-		logger:  logger,
-		storage: storage,
+		logger: logger,
+		db:     db,
 	}, nil
 }
 
@@ -66,8 +70,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("http shutdown: %w", err)
 	}
-	if err := s.storage.Close(); err != nil {
-		return fmt.Errorf("storage close: %w", err)
+	if err := s.db.Close(); err != nil {
+		return fmt.Errorf("db close: %w", err)
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-package sqlite
+package idgen
 
 import (
 	"crypto/rand"
@@ -7,7 +7,8 @@ import (
 
 var lowerBase32 = base32.NewEncoding("23456789abcdefghijkmnpqrstuvwxyz").WithPadding(base32.NoPadding)
 
-func generateSecretID() (string, error) {
+// SecretID generates a unique secret identifier
+func SecretID() (string, error) {
 	bytes := make([]byte, 16)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err

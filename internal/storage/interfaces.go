@@ -27,3 +27,10 @@ type SecretStorage interface {
 	SecretWriter
 	Close() error
 }
+
+type UnitOfWork interface {
+	Begin(ctx context.Context) error
+	Commit() error
+	Rollback() error
+	Secrets() SecretStorage
+}
