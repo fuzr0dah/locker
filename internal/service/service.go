@@ -40,6 +40,10 @@ func NewSecretsService(reader storage.SecretReader, uowFactory func() storage.Un
 
 // Create creates a new secret
 func (s *secretsService) Create(ctx context.Context, name string, value string) (*domain.Secret, error) {
+	if err := domain.ValidateSecretName(name); err != nil {
+		return nil, err
+	}
+
 	uow := s.uowFactory()
 	if err := uow.Begin(ctx); err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -79,6 +83,10 @@ func (s *secretsService) GetById(ctx context.Context, id string) (*domain.Secret
 
 // Update updates a secret value (creates new version)
 func (s *secretsService) Update(ctx context.Context, id, name, value string) (*domain.Secret, error) {
+	if err := domain.ValidateSecretName(name); err != nil {
+		return nil, err
+	}
+
 	uow := s.uowFactory()
 	if err := uow.Begin(ctx); err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)

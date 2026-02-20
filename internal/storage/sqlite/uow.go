@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fuzr0dah/locker/internal/db"
 	"github.com/fuzr0dah/locker/internal/domain"
-	"github.com/fuzr0dah/locker/internal/idgen"
+	"github.com/fuzr0dah/locker/internal/domain/id"
 	"github.com/fuzr0dah/locker/internal/storage"
 )
 
@@ -76,6 +77,14 @@ func (u *unitOfWork) cleanup() {
 	u.writer = nil
 }
 
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique constraint failed")
+}
+
 // txStorage is a storage implementation that operates within a transaction
 type txStorage struct {
 	*secretReader
@@ -86,13 +95,16 @@ func (s *txStorage) Close() error {
 }
 
 func (s *txStorage) CreateSecret(ctx context.Context, name string, value []byte) (*domain.Secret, error) {
-	secretID, err := idgen.SecretID()
+	secretID, err := id.SecretID()
 	if err != nil {
 		return nil, fmt.Errorf("generate secret id: %w", err)
 	}
 
 	_, err = s.secretReader.queries.CreateSecret(ctx, db.CreateSecretParams{ID: secretID, Name: name})
 	if err != nil {
+		if isUniqueConstraintError(err) {
+			return nil, domain.ErrNameAlreadyExists
+		}
 		return nil, fmt.Errorf("create secret record: %w", err)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/fuzr0dah/locker/internal/api"
+	"github.com/fuzr0dah/locker/internal/domain/id"
 	"github.com/fuzr0dah/locker/internal/facade"
 
 	"github.com/go-chi/chi/v5"
@@ -37,13 +38,13 @@ func (router *router) handleCreateSecret(w http.ResponseWriter, r *http.Request)
 }
 
 func (router *router) handleGetSecretByID(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	if id == "" {
-		badRequest(w, r, "id is required")
+	idParam := chi.URLParam(r, "id")
+	if !id.IsValid(idParam) {
+		badRequest(w, r, "invalid secret id format")
 		return
 	}
 
-	secret, err := router.facade.GetSecretById(r.Context(), id)
+	secret, err := router.facade.GetSecretById(r.Context(), idParam)
 	if err != nil {
 		respondWithError(w, r, err)
 		return
@@ -54,9 +55,9 @@ func (router *router) handleGetSecretByID(w http.ResponseWriter, r *http.Request
 }
 
 func (router *router) handleUpdateSecret(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	if id == "" {
-		badRequest(w, r, "id is required")
+	idParam := chi.URLParam(r, "id")
+	if !id.IsValid(idParam) {
+		badRequest(w, r, "invalid secret id format")
 		return
 	}
 
@@ -66,7 +67,7 @@ func (router *router) handleUpdateSecret(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	secret, err := router.facade.UpdateSecret(r.Context(), id, req.Name, req.Value)
+	secret, err := router.facade.UpdateSecret(r.Context(), idParam, req.Name, req.Value)
 	if err != nil {
 		respondWithError(w, r, err)
 		return
@@ -77,13 +78,13 @@ func (router *router) handleUpdateSecret(w http.ResponseWriter, r *http.Request)
 }
 
 func (router *router) handleDeleteSecret(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	if id == "" {
-		badRequest(w, r, "id is required")
+	idParam := chi.URLParam(r, "id")
+	if !id.IsValid(idParam) {
+		badRequest(w, r, "invalid secret id format")
 		return
 	}
 
-	if err := router.facade.DeleteSecret(r.Context(), id); err != nil {
+	if err := router.facade.DeleteSecret(r.Context(), idParam); err != nil {
 		respondWithError(w, r, err)
 		return
 	}
@@ -92,9 +93,9 @@ func (router *router) handleDeleteSecret(w http.ResponseWriter, r *http.Request)
 }
 
 func (router *router) handleGetSecretVersion(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	if id == "" {
-		badRequest(w, r, "id is required")
+	idParam := chi.URLParam(r, "id")
+	if !id.IsValid(idParam) {
+		badRequest(w, r, "invalid secret id format")
 		return
 	}
 
@@ -105,7 +106,7 @@ func (router *router) handleGetSecretVersion(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	secret, err := router.facade.GetSecretVersion(r.Context(), id, version)
+	secret, err := router.facade.GetSecretVersion(r.Context(), idParam, version)
 	if err != nil {
 		respondWithError(w, r, err)
 		return
