@@ -22,15 +22,17 @@ type SecretsFacade interface {
 
 // facade implements SecretsFacade
 type facade struct {
-	service service.SecretsService
-	logger  *slog.Logger
+	service     service.SecretsService
+	logger      *slog.Logger
+	auditLogger *slog.Logger
 }
 
 // NewFacade creates a facade
-func NewFacade(service service.SecretsService, logger *slog.Logger) *facade {
+func NewFacade(service service.SecretsService, logger, auditLogger *slog.Logger) *facade {
 	return &facade{
-		service: service,
-		logger:  logger,
+		service:     service,
+		logger:      logger,
+		auditLogger: auditLogger,
 	}
 }
 

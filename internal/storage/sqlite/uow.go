@@ -18,7 +18,7 @@ type unitOfWork struct {
 	tx      *sql.Tx
 	queries *db.Queries
 
-	secrets storage.SecretStorage
+	writer storage.SecretWriter
 }
 
 // NewUnitOfWork creates a new SQLite unit of work
@@ -46,6 +46,7 @@ func (u *unitOfWork) Commit() error {
 	if u.tx == nil {
 		return errors.New("no transaction")
 	}
+	defer u.cleanup()
 	return u.tx.Commit()
 }
 
@@ -58,21 +59,21 @@ func (u *unitOfWork) Rollback() error {
 	return u.tx.Rollback()
 }
 
-// Secrets returns the secrets storage for this unit of work
-func (u *unitOfWork) Secrets() storage.SecretStorage {
+// Writer returns the secrets writer for this unit of work
+func (u *unitOfWork) Writer() storage.SecretWriter {
 	if u.queries == nil {
 		panic("unitOfWork not started - call Begin() first")
 	}
-	if u.secrets == nil {
-		u.secrets = &txStorage{secretReader: &secretReader{queries: u.queries}}
+	if u.writer == nil {
+		u.writer = &txStorage{secretReader: &secretReader{queries: u.queries}}
 	}
-	return u.secrets
+	return u.writer
 }
 
 func (u *unitOfWork) cleanup() {
 	u.tx = nil
 	u.queries = nil
-	u.secrets = nil
+	u.writer = nil
 }
 
 // txStorage is a storage implementation that operates within a transaction

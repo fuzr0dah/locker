@@ -3,8 +3,10 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/fuzr0dah/locker/internal/log"
 	"github.com/fuzr0dah/locker/internal/server"
 
 	"github.com/spf13/cobra"
@@ -22,19 +24,25 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 		Long:         serverDescription,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			auditFile, err := os.OpenFile(".build/audit.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+			if err != nil {
+				return fmt.Errorf("open audit log: %w", err)
+			}
+			defer auditFile.Close()
+
+			auditLogger := log.NewAuditLogger(auditFile)
+			serverLogger := log.NewServerLogger(f.stdout)
+
 			if devMode {
 				f.print("server is running in dev mode")
 			} else {
 				return fmt.Errorf("production mode not yet implemented, use --dev flag")
 			}
 
-			srv, err := server.NewServer(f.serverLogger)
+			srv, err := server.NewServer(serverLogger, auditLogger)
 			if err != nil {
-				f.cliLogger.Error("server initialization failed", "error", err)
 				return fmt.Errorf("init server: %w", err)
 			}
-
-			f.cliLogger.Info("server started", "addr", ":8080")
 
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel()
@@ -46,21 +54,16 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 
 			select {
 			case err := <-errChan:
-				f.cliLogger.Error("server runtime error", "error", err)
 				return err
 			case <-ctx.Done():
-				f.cliLogger.Info("server shutdown initiated", "reason", "signal received")
-
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer shutdownCancel()
 
 				err := srv.Shutdown(shutdownCtx)
 				if err != nil {
-					f.cliLogger.Error("server shutdown failed", "error", err, "http_error", ctx.Err())
 					return err
 				}
 
-				f.cliLogger.Info("server stopped gracefully", "shutdown_duration", "5s")
 				return nil
 			}
 		},

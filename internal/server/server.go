@@ -17,12 +17,13 @@ import (
 )
 
 type Server struct {
-	httpServer *http.Server
-	logger     *slog.Logger
-	db         *sql.DB
+	httpServer  *http.Server
+	logger      *slog.Logger
+	auditLogger *slog.Logger
+	db          *sql.DB
 }
 
-func NewServer(logger *slog.Logger) (*Server, error) {
+func NewServer(logger, auditLogger *slog.Logger) (*Server, error) {
 	if logger == nil {
 		return nil, errors.New("logger is required")
 	}
@@ -46,7 +47,7 @@ func NewServer(logger *slog.Logger) (*Server, error) {
 	svc := service.NewSecretsService(reader, uowFactory, logger)
 
 	facadeLogger := logger.With("component", "facade")
-	facade := facade.NewFacade(svc, facadeLogger)
+	facade := facade.NewFacade(svc, facadeLogger, auditLogger)
 
 	handlerLogger := logger.With("component", "handler")
 	router := newRouter(facade)
@@ -57,8 +58,9 @@ func NewServer(logger *slog.Logger) (*Server, error) {
 			Addr:    ":8080",
 			Handler: handler,
 		},
-		logger: logger,
-		db:     db,
+		logger:      logger,
+		auditLogger: auditLogger,
+		db:          db,
 	}, nil
 }
 

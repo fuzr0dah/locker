@@ -56,7 +56,7 @@ func (s *secretsService) Create(ctx context.Context, name string, value string) 
 		}
 	}()
 
-	secret, opErr = uow.Secrets().CreateSecret(ctx, name, []byte(value))
+	secret, opErr = uow.Writer().CreateSecret(ctx, name, []byte(value))
 	if opErr != nil {
 		return nil, fmt.Errorf("create secret: %w", opErr)
 	}
@@ -95,13 +95,13 @@ func (s *secretsService) Update(ctx context.Context, id, name, value string) (*d
 		}
 	}()
 
-	secret, opErr = uow.Secrets().UpdateSecret(ctx, id, name, []byte(value))
+	secret, opErr = uow.Writer().UpdateSecret(ctx, id, name, []byte(value))
 	if opErr != nil {
 		return nil, fmt.Errorf("update secret: %w", opErr)
 	}
 
-	if err := uow.Commit(); err != nil {
-		return nil, fmt.Errorf("commit transaction: %w", err)
+	if opErr = uow.Commit(); opErr != nil {
+		return nil, fmt.Errorf("commit transaction: %w", opErr)
 	}
 
 	return secret, nil
@@ -124,7 +124,7 @@ func (s *secretsService) Delete(ctx context.Context, id string) error {
 		}
 	}()
 
-	opErr = uow.Secrets().DeleteSecret(ctx, id)
+	opErr = uow.Writer().DeleteSecret(ctx, id)
 	if opErr != nil {
 		return fmt.Errorf("delete secret: %w", opErr)
 	}

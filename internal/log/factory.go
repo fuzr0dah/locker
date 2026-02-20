@@ -8,9 +8,16 @@ import (
 	"github.com/lmittmann/tint"
 )
 
-func NewCliLogger(stdout io.Writer) *slog.Logger {
-	logger := slog.New(slog.NewJSONHandler(stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	return logger
+func NewAuditLogger(w io.Writer) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == "value" || a.Key == "password" || a.Key == "master_key" {
+				return slog.Attr{}
+			}
+			return a
+		},
+	}))
 }
 
 // TODO сreate separate logger function for debug and production.
