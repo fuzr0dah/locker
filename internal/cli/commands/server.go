@@ -6,8 +6,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/fuzr0dah/locker/internal/db/migrations"
+	"github.com/fuzr0dah/locker/internal/facade"
 	"github.com/fuzr0dah/locker/internal/log"
 	"github.com/fuzr0dah/locker/internal/server"
+	"github.com/fuzr0dah/locker/internal/service"
+	"github.com/fuzr0dah/locker/internal/storage"
+	"github.com/fuzr0dah/locker/internal/storage/sqlite"
 
 	"github.com/spf13/cobra"
 )
@@ -24,6 +29,12 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 		Long:         serverDescription,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if devMode {
+				f.print("server is running in dev mode")
+			} else {
+				return fmt.Errorf("production mode not yet implemented, use --dev flag")
+			}
+
 			auditFile, err := os.OpenFile(".build/audit.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 			if err != nil {
 				return fmt.Errorf("open audit log: %w", err)
@@ -33,13 +44,26 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 			auditLogger := log.NewAuditLogger(auditFile)
 			serverLogger := log.NewServerLogger(f.stdout)
 
-			if devMode {
-				f.print("server is running in dev mode")
-			} else {
-				return fmt.Errorf("production mode not yet implemented, use --dev flag")
+			db, err := sqlite.OpenDB("")
+			if err != nil {
+				return fmt.Errorf("open db: %w", err)
 			}
 
-			srv, err := server.NewServer(serverLogger, auditLogger)
+			if err := migrations.RunMigrations(db); err != nil {
+				db.Close()
+				return fmt.Errorf("run migrations: %w", err)
+			}
+
+			reader := sqlite.NewSecretReader(db)
+			uowFactory := func() storage.UnitOfWork {
+				return sqlite.NewUnitOfWork(db)
+			}
+			svc := service.NewSecretsService(reader, uowFactory, serverLogger)
+
+			facadeLogger := serverLogger.With("component", "facade")
+			facade := facade.NewFacade(svc, facadeLogger, auditLogger)
+
+			srv, err := server.NewServer(facade, serverLogger)
 			if err != nil {
 				return fmt.Errorf("init server: %w", err)
 			}
@@ -62,6 +86,10 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 				err := srv.Shutdown(shutdownCtx)
 				if err != nil {
 					return err
+				}
+
+				if err := db.Close(); err != nil {
+					return fmt.Errorf("db close: %w", err)
 				}
 
 				return nil

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/fuzr0dah/locker/internal/api"
+
 	"github.com/go-chi/render"
 )
 

@@ -56,11 +56,7 @@ func mapToApiError(err error) error {
 	}
 
 	// 400 Bad Request
-	if errors.Is(err, domain.ErrInvalidName) ||
-		errors.Is(err, domain.ErrNameEmpty) ||
-		errors.Is(err, domain.ErrNameTooLong) ||
-		errors.Is(err, domain.ErrInvalidValue) ||
-		errors.Is(err, domain.ErrValueTooLarge) {
+	if errors.Is(err, domain.ErrNameEmpty) || errors.Is(err, domain.ErrNameTooLong) {
 		return api.APIError{Code: api.ErrInvalidInput, Message: err.Error()}
 	}
 

@@ -1,10 +1,9 @@
 package server
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
-
-	"log/slog"
 
 	"github.com/go-chi/chi/v5/middleware"
 )

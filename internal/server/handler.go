@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/fuzr0dah/locker/internal/api"
+
 	"github.com/go-chi/chi/v5"
 )
 

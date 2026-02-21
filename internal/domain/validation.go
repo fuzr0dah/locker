@@ -1,8 +1,6 @@
 package domain
 
-import (
-	"strings"
-)
+import "strings"
 
 func ValidateSecretName(name string) error {
 	if strings.TrimSpace(name) == "" {
