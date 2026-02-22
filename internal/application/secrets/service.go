@@ -74,7 +74,6 @@ func (s *secretsService) Create(ctx context.Context, name string, value string) 
 		return nil, fmt.Errorf("commit transaction: %w", err)
 	}
 
-	// Не возвращаем value обратно (клиент его знает), очищаем для безопасности
 	secret.Value = nil
 	return secret, nil
 }
@@ -132,7 +131,6 @@ func (s *secretsService) Update(ctx context.Context, id, name, value string) (*s
 		return nil, fmt.Errorf("commit transaction: %w", opErr)
 	}
 
-	// Не возвращаем value обратно (клиент его знает), очищаем для безопасности
 	secret.Value = nil
 	return secret, nil
 }
@@ -181,6 +179,17 @@ func (s *secretsService) GetVersion(ctx context.Context, id string, version int)
 	if err != nil {
 		return nil, fmt.Errorf("get version: %w", err)
 	}
+
+	plaintext, err := s.envelope.Open(secretVersion.Value)
+	if err != nil {
+		s.logger.Error("failed to decrypt version",
+			"secret_id", id,
+			"version", version,
+			"error", err)
+		return nil, fmt.Errorf("decrypt version: %w", err)
+	}
+	secretVersion.Value = plaintext
+
 	return secretVersion, nil
 }
 
@@ -190,5 +199,18 @@ func (s *secretsService) GetVersions(ctx context.Context, id string, limit int) 
 	if err != nil {
 		return nil, fmt.Errorf("get versions: %w", err)
 	}
+
+	for i, v := range versions {
+		plaintext, err := s.envelope.Open(v.Value)
+		if err != nil {
+			s.logger.Error("failed to decrypt version",
+				"secret_id", id,
+				"version", v.Version,
+				"error", err)
+			return nil, fmt.Errorf("decrypt version %d: %w", v.Version, err)
+		}
+		versions[i].Value = plaintext
+	}
+
 	return versions, nil
 }
