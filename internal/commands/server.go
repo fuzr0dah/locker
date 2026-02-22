@@ -6,13 +6,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/fuzr0dah/locker/internal/db/migrations"
-	"github.com/fuzr0dah/locker/internal/facade"
-	"github.com/fuzr0dah/locker/internal/log"
+	appCrypto "github.com/fuzr0dah/locker/internal/application/crypto"
+	"github.com/fuzr0dah/locker/internal/application/facade"
+	"github.com/fuzr0dah/locker/internal/application/secrets"
+	"github.com/fuzr0dah/locker/internal/domain/repository"
+	infrCrypto "github.com/fuzr0dah/locker/internal/infrastructure/crypto"
+	"github.com/fuzr0dah/locker/internal/infrastructure/log"
+	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite"
+	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/db/migrations"
 	"github.com/fuzr0dah/locker/internal/server"
-	"github.com/fuzr0dah/locker/internal/service"
-	"github.com/fuzr0dah/locker/internal/storage"
-	"github.com/fuzr0dah/locker/internal/storage/sqlite"
 
 	"github.com/spf13/cobra"
 )
@@ -54,11 +56,13 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 				return fmt.Errorf("run migrations: %w", err)
 			}
 
+			cipher := infrCrypto.NewAES()
+			envelope := appCrypto.NewEnvelopeService(cipher)
 			reader := sqlite.NewSecretReader(db)
-			uowFactory := func() storage.UnitOfWork {
+			uowFactory := func() repository.UnitOfWork {
 				return sqlite.NewUnitOfWork(db)
 			}
-			svc := service.NewSecretsService(reader, uowFactory, serverLogger)
+			svc := secrets.NewSecretsService(envelope, reader, uowFactory, serverLogger)
 
 			facadeLogger := serverLogger.With("component", "facade")
 			facade := facade.NewFacade(svc, facadeLogger, auditLogger)

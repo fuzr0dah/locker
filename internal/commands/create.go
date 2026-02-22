@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/fuzr0dah/locker/internal/api"
-	"github.com/fuzr0dah/locker/internal/cli/client"
+	"github.com/fuzr0dah/locker/internal/client"
 
 	"github.com/spf13/cobra"
 )

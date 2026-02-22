@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fuzr0dah/locker/internal/db"
-	"github.com/fuzr0dah/locker/internal/domain"
-	"github.com/fuzr0dah/locker/internal/domain/id"
-	"github.com/fuzr0dah/locker/internal/storage"
+	"github.com/fuzr0dah/locker/internal/domain/repository"
+	"github.com/fuzr0dah/locker/internal/domain/secrets"
+	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/db"
 )
 
 // unitOfWork implements storage.UnitOfWork interface for SQLite
@@ -19,11 +18,11 @@ type unitOfWork struct {
 	tx      *sql.Tx
 	queries *db.Queries
 
-	writer storage.SecretWriter
+	writer repository.SecretWriter
 }
 
 // NewUnitOfWork creates a new SQLite unit of work
-func NewUnitOfWork(db *sql.DB) storage.UnitOfWork {
+func NewUnitOfWork(db *sql.DB) repository.UnitOfWork {
 	return &unitOfWork{db: db}
 }
 
@@ -61,7 +60,7 @@ func (u *unitOfWork) Rollback() error {
 }
 
 // Writer returns the secrets writer for this unit of work
-func (u *unitOfWork) Writer() storage.SecretWriter {
+func (u *unitOfWork) Writer() repository.SecretWriter {
 	if u.queries == nil {
 		panic("unitOfWork not started - call Begin() first")
 	}
@@ -94,8 +93,8 @@ func (s *txStorage) Close() error {
 	return nil
 }
 
-func (s *txStorage) CreateSecret(ctx context.Context, name string, value []byte) (*domain.Secret, error) {
-	secretID, err := id.SecretID()
+func (s *txStorage) CreateSecret(ctx context.Context, name string, value []byte) (*secrets.Secret, error) {
+	secretID, err := secrets.SecretID()
 	if err != nil {
 		return nil, fmt.Errorf("generate secret id: %w", err)
 	}
@@ -103,7 +102,7 @@ func (s *txStorage) CreateSecret(ctx context.Context, name string, value []byte)
 	_, err = s.secretReader.queries.CreateSecret(ctx, db.CreateSecretParams{ID: secretID, Name: name})
 	if err != nil {
 		if isUniqueConstraintError(err) {
-			return nil, domain.ErrNameAlreadyExists
+			return nil, secrets.ErrNameAlreadyExists
 		}
 		return nil, fmt.Errorf("create secret record: %w", err)
 	}
@@ -127,11 +126,11 @@ func (s *txStorage) CreateSecret(ctx context.Context, name string, value []byte)
 	return fromDBSecret(secret), nil
 }
 
-func (s *txStorage) UpdateSecret(ctx context.Context, id, name string, value []byte) (*domain.Secret, error) {
+func (s *txStorage) UpdateSecret(ctx context.Context, id, name string, value []byte) (*secrets.Secret, error) {
 	currentVersion, err := s.secretReader.queries.GetLastVersionForSecretId(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, domain.ErrSecretNotFound
+			return nil, secrets.ErrSecretNotFound
 		}
 		return nil, fmt.Errorf("get current version: %w", err)
 	}
@@ -152,7 +151,7 @@ func (s *txStorage) UpdateSecret(ctx context.Context, id, name string, value []b
 		OldVersionID: sql.NullInt64{Int64: currentVersion.ID, Valid: true},
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, domain.ErrVersionConflict
+		return nil, secrets.ErrVersionConflict
 	}
 	if err != nil {
 		return nil, fmt.Errorf("update secret: %w", err)
@@ -164,7 +163,7 @@ func (s *txStorage) UpdateSecret(ctx context.Context, id, name string, value []b
 func (s *txStorage) DeleteSecret(ctx context.Context, id string) error {
 	err := s.secretReader.queries.DeleteSecret(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return domain.ErrSecretNotFound
+		return secrets.ErrSecretNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("delete secret: %w", err)

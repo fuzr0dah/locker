@@ -4,10 +4,12 @@ import (
 	"errors"
 
 	"github.com/fuzr0dah/locker/internal/api"
-	"github.com/fuzr0dah/locker/internal/domain"
+	"github.com/fuzr0dah/locker/internal/domain/crypto"
+	"github.com/fuzr0dah/locker/internal/domain/secrets"
+	"github.com/fuzr0dah/locker/internal/domain/validation"
 )
 
-func mapToApiSecret(secret *domain.Secret) *api.Secret {
+func mapToApiSecret(secret *secrets.Secret) *api.Secret {
 	if secret == nil {
 		return nil
 	}
@@ -21,7 +23,7 @@ func mapToApiSecret(secret *domain.Secret) *api.Secret {
 	}
 }
 
-func mapToApiSecretVersion(secretVersion *domain.SecretVersion) *api.SecretVersion {
+func mapToApiSecretVersion(secretVersion *secrets.SecretVersion) *api.SecretVersion {
 	if secretVersion == nil {
 		return nil
 	}
@@ -40,24 +42,32 @@ func mapToApiError(err error) error {
 	}
 
 	// 404 Not Found
-	if errors.Is(err, domain.ErrSecretNotFound) {
+	if errors.Is(err, secrets.ErrSecretNotFound) {
 		return api.SecretNotFoundErr
 	}
 
 	// 409 Conflict
-	if errors.Is(err, domain.ErrVersionConflict) {
+	if errors.Is(err, secrets.ErrVersionConflict) {
 		return api.SecretVersionConflictErr
 	}
-	if errors.Is(err, domain.ErrNameAlreadyExists) {
-		return api.APIError{Code: api.ErrAlreadyExists, Message: "secret name already exists"}
+	if errors.Is(err, secrets.ErrNameAlreadyExists) {
+		return api.SecretNameAlreadyExistsErr
 	}
-	if errors.Is(err, domain.ErrSecretDeleted) {
-		return api.APIError{Code: api.ErrConflict, Message: "secret is deleted"}
+	if errors.Is(err, secrets.ErrSecretDeleted) {
+		return api.SecretDeletedErr
 	}
 
 	// 400 Bad Request
-	if errors.Is(err, domain.ErrNameEmpty) || errors.Is(err, domain.ErrNameTooLong) {
+	if errors.Is(err, validation.ErrNameEmpty) || errors.Is(err, validation.ErrNameTooLong) {
 		return api.APIError{Code: api.ErrInvalidInput, Message: err.Error()}
+	}
+	if errors.Is(err, crypto.ErrInvalidCiphertext) {
+		return api.InvalidCiphertextErr
+	}
+
+	// 500 Internal Server Error
+	if errors.Is(err, crypto.ErrDecryptionFailed) {
+		return api.InternalErr
 	}
 
 	var apiErr api.APIError

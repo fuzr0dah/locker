@@ -6,8 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/fuzr0dah/locker/internal/crypto"
-	"github.com/fuzr0dah/locker/internal/facade"
+	"github.com/fuzr0dah/locker/internal/application/facade"
 )
 
 type Server struct {
@@ -17,7 +16,6 @@ type Server struct {
 
 func NewServer(facade facade.SecretsFacade, logger *slog.Logger) (*Server, error) {
 	logger.Info("initializing server", "addr", ":8080")
-	logger.Info("master key generated", "key", crypto.GenerateMasterKey())
 
 	handlerLogger := logger.With("component", "handler")
 	router := newRouter(facade)

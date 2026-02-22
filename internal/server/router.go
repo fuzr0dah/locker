@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/fuzr0dah/locker/internal/api"
-	"github.com/fuzr0dah/locker/internal/domain/id"
-	"github.com/fuzr0dah/locker/internal/facade"
+	"github.com/fuzr0dah/locker/internal/application/facade"
+	"github.com/fuzr0dah/locker/internal/domain/secrets"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -39,7 +39,7 @@ func (router *router) handleCreateSecret(w http.ResponseWriter, r *http.Request)
 
 func (router *router) handleGetSecretByID(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
-	if !id.IsValid(idParam) {
+	if !secrets.IsValid(idParam) {
 		badRequest(w, r, "invalid secret id format")
 		return
 	}
@@ -56,7 +56,7 @@ func (router *router) handleGetSecretByID(w http.ResponseWriter, r *http.Request
 
 func (router *router) handleUpdateSecret(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
-	if !id.IsValid(idParam) {
+	if !secrets.IsValid(idParam) {
 		badRequest(w, r, "invalid secret id format")
 		return
 	}
@@ -79,7 +79,7 @@ func (router *router) handleUpdateSecret(w http.ResponseWriter, r *http.Request)
 
 func (router *router) handleDeleteSecret(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
-	if !id.IsValid(idParam) {
+	if !secrets.IsValid(idParam) {
 		badRequest(w, r, "invalid secret id format")
 		return
 	}
@@ -94,7 +94,7 @@ func (router *router) handleDeleteSecret(w http.ResponseWriter, r *http.Request)
 
 func (router *router) handleGetSecretVersion(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
-	if !id.IsValid(idParam) {
+	if !secrets.IsValid(idParam) {
 		badRequest(w, r, "invalid secret id format")
 		return
 	}

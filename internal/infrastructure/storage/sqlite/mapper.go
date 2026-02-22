@@ -1,12 +1,12 @@
 package sqlite
 
 import (
-	"github.com/fuzr0dah/locker/internal/db"
-	"github.com/fuzr0dah/locker/internal/domain"
+	"github.com/fuzr0dah/locker/internal/domain/secrets"
+	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/db"
 )
 
-func fromDBSecret(s db.Secret) *domain.Secret {
-	return &domain.Secret{
+func fromDBSecret(s db.Secret) *secrets.Secret {
+	return &secrets.Secret{
 		ID:        s.ID,
 		Name:      s.Name,
 		Version:   s.VersionID.Int64,
@@ -15,14 +15,14 @@ func fromDBSecret(s db.Secret) *domain.Secret {
 	}
 }
 
-func fromGetSecretByIdRow(s db.GetSecretByIdRow) *domain.Secret {
+func fromGetSecretByIdRow(s db.GetSecretByIdRow) *secrets.Secret {
 	var valueCopy []byte
 	if s.Value != nil {
 		valueCopy = make([]byte, len(s.Value))
 		copy(valueCopy, s.Value)
 	}
 
-	return &domain.Secret{
+	return &secrets.Secret{
 		ID:        s.ID,
 		Name:      s.Name,
 		Version:   s.VersionID.Int64,
@@ -32,14 +32,14 @@ func fromGetSecretByIdRow(s db.GetSecretByIdRow) *domain.Secret {
 	}
 }
 
-func fromDBSecretVersion(s db.SecretVersion) *domain.SecretVersion {
+func fromDBSecretVersion(s db.SecretVersion) *secrets.SecretVersion {
 	var valueCopy []byte
 	if s.Value != nil {
 		valueCopy = make([]byte, len(s.Value))
 		copy(valueCopy, s.Value)
 	}
 
-	return &domain.SecretVersion{
+	return &secrets.SecretVersion{
 		ID:        s.ID,
 		SecretID:  s.SecretID,
 		Version:   s.Version,

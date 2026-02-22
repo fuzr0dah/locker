@@ -19,7 +19,10 @@ type APIError struct {
 func (e APIError) Error() string { return e.Message }
 
 var (
-	SecretNotFoundErr  = APIError{Code: ErrNotFound, Message: "secret not found"}
-	SecretVersionConflictErr = APIError{Code: ErrConflict, Message: "secret version conflict"}
-	InternalErr        = APIError{Code: ErrInternal, Message: "internal server error"}
+	SecretNotFoundErr          = APIError{Code: ErrNotFound, Message: "secret not found"}
+	SecretVersionConflictErr   = APIError{Code: ErrConflict, Message: "secret version conflict"}
+	SecretNameAlreadyExistsErr = APIError{Code: ErrAlreadyExists, Message: "secret name already exists"}
+	SecretDeletedErr           = APIError{Code: ErrConflict, Message: "secret is deleted"}
+	InvalidCiphertextErr       = APIError{Code: ErrInvalidInput, Message: "invalid encrypted data format"}
+	InternalErr                = APIError{Code: ErrInternal, Message: "internal server error"}
 )
