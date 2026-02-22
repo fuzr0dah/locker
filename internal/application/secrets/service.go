@@ -74,6 +74,8 @@ func (s *secretsService) Create(ctx context.Context, name string, value string) 
 		return nil, fmt.Errorf("commit transaction: %w", err)
 	}
 
+	// Не возвращаем value обратно (клиент его знает), очищаем для безопасности
+	secret.Value = nil
 	return secret, nil
 }
 
@@ -130,6 +132,8 @@ func (s *secretsService) Update(ctx context.Context, id, name, value string) (*s
 		return nil, fmt.Errorf("commit transaction: %w", opErr)
 	}
 
+	// Не возвращаем value обратно (клиент его знает), очищаем для безопасности
+	secret.Value = nil
 	return secret, nil
 }
 

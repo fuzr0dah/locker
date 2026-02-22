@@ -11,7 +11,7 @@ const Length = 24
 
 var (
 	lowerBase32 = base32.NewEncoding("23456789abcdefghijkmnpqrstuvwxyz").WithPadding(base32.NoPadding)
-	validID     = regexp.MustCompile(`^` + Prefix + `[a-z0-9]{20}$`)
+	validID     = regexp.MustCompile(`^` + Prefix + `[a-z0-9]{26}$`)
 )
 
 func SecretID() (string, error) {
