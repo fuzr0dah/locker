@@ -1,19 +1,8 @@
 package commands
 
 import (
-	"context"
 	"fmt"
-	"os"
-	"time"
 
-	appCrypto "github.com/fuzr0dah/locker/internal/application/crypto"
-	"github.com/fuzr0dah/locker/internal/application/facade"
-	"github.com/fuzr0dah/locker/internal/application/secrets"
-	"github.com/fuzr0dah/locker/internal/domain/repository"
-	infrCrypto "github.com/fuzr0dah/locker/internal/infrastructure/crypto"
-	"github.com/fuzr0dah/locker/internal/infrastructure/log"
-	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite"
-	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/db/migrations"
 	"github.com/fuzr0dah/locker/internal/server"
 
 	"github.com/spf13/cobra"
@@ -31,73 +20,17 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 		Long:         serverDescription,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if devMode {
-				f.print("server is running in dev mode")
-			} else {
-				return fmt.Errorf("production mode not yet implemented, use --dev flag")
-			}
-
-			auditFile, err := os.OpenFile(".build/audit.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+			runner, deps, err := server.NewRunnerWithDeps(f.stdout, devMode)
 			if err != nil {
-				return fmt.Errorf("open audit log: %w", err)
-			}
-			defer auditFile.Close()
-
-			auditLogger := log.NewAuditLogger(auditFile)
-			serverLogger := log.NewServerLogger(f.stdout)
-
-			db, err := sqlite.OpenDB("")
-			if err != nil {
-				return fmt.Errorf("open db: %w", err)
-			}
-
-			if err := migrations.RunMigrations(db); err != nil {
-				db.Close()
-				return fmt.Errorf("run migrations: %w", err)
-			}
-
-			cipher := infrCrypto.NewAES()
-			envelope := appCrypto.NewEnvelopeService(cipher)
-			reader := sqlite.NewSecretReader(db)
-			uowFactory := func() repository.UnitOfWork {
-				return sqlite.NewUnitOfWork(db)
-			}
-			svc := secrets.NewSecretsService(envelope, reader, uowFactory, serverLogger)
-
-			facadeLogger := serverLogger.With("component", "facade")
-			facade := facade.NewFacade(svc, facadeLogger, auditLogger)
-
-			srv, err := server.NewServer(facade, serverLogger)
-			if err != nil {
-				return fmt.Errorf("init server: %w", err)
-			}
-
-			ctx, cancel := context.WithCancel(cmd.Context())
-			defer cancel()
-
-			errChan := make(chan error, 1)
-			go func() {
-				errChan <- srv.Start()
-			}()
-
-			select {
-			case err := <-errChan:
 				return err
-			case <-ctx.Done():
-				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer shutdownCancel()
-
-				err := srv.Shutdown(shutdownCtx)
-				if err != nil {
-					return err
-				}
-
-				if err := db.Close(); err != nil {
-					return fmt.Errorf("db close: %w", err)
-				}
-
-				return nil
 			}
+			defer deps.Close()
+
+			runner.Start()
+			if err := runner.Wait(); err != nil {
+				return fmt.Errorf("server error: %w", err)
+			}
+			return nil
 		},
 	}
 

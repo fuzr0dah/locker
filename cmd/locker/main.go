@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,7 +18,6 @@ func main() {
 	cmd.SetContext(ctx)
 
 	if err := cmd.Execute(); err != nil {
-		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 }

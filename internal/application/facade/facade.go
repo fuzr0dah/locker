@@ -37,7 +37,6 @@ func NewFacade(service secrets.SecretsService, logger, auditLogger *slog.Logger)
 }
 
 func (f *facade) CreateSecret(ctx context.Context, name string, value string) (*api.Secret, error) {
-	// TODO add traceID
 	logger := f.logger.With("operation", "create_secret")
 	logger.Info("creating secret", "name", name)
 	secret, err := f.service.Create(ctx, name, value)

@@ -9,8 +9,6 @@ import (
 )
 
 // OpenDB opens a new SQLite database connection
-// For in-memory mode: "file::memory:?cache=shared&_fk=on"
-// For file mode: "file:/path/to/db.sqlite?_fk=on"
 func OpenDB(dsn string) (*sql.DB, error) {
 	if dsn == "" {
 		dsn = "file::memory:?cache=shared&_fk=on&_journal_mode=WAL&_busy_timeout=5000"
