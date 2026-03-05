@@ -3,7 +3,7 @@
 //   sqlc v1.30.0
 // source: secrets.sql
 
-package db
+package sqlitegen
 
 import (
 	"context"

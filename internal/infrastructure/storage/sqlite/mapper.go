@@ -2,10 +2,10 @@ package sqlite
 
 import (
 	"github.com/fuzr0dah/locker/internal/domain/secrets"
-	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/db"
+	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/sqlitegen"
 )
 
-func fromDBSecret(s db.Secret) *secrets.Secret {
+func fromSQLiteSecret(s sqlitegen.Secret) *secrets.Secret {
 	return &secrets.Secret{
 		ID:        s.ID,
 		Name:      s.Name,
@@ -15,7 +15,7 @@ func fromDBSecret(s db.Secret) *secrets.Secret {
 	}
 }
 
-func fromGetSecretByIdRow(s db.GetSecretByIdRow) *secrets.Secret {
+func fromSQLiteGetSecretByIdRow(s sqlitegen.GetSecretByIdRow) *secrets.Secret {
 	var valueCopy []byte
 	if s.Value != nil {
 		valueCopy = make([]byte, len(s.Value))
@@ -32,7 +32,7 @@ func fromGetSecretByIdRow(s db.GetSecretByIdRow) *secrets.Secret {
 	}
 }
 
-func fromDBSecretVersion(s db.SecretVersion) *secrets.SecretVersion {
+func fromSQLiteSecretVersion(s sqlitegen.SecretVersion) *secrets.SecretVersion {
 	var valueCopy []byte
 	if s.Value != nil {
 		valueCopy = make([]byte, len(s.Value))

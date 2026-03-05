@@ -1,5 +1,7 @@
 package server
 
+import "context"
+
 type Runner struct {
 	servers []Server
 	errChan chan error
@@ -22,6 +24,12 @@ func (r *Runner) Start() {
 	}
 }
 
-func (r *Runner) Wait() error {
-	return <-r.errChan
+func (r *Runner) Wait() <-chan error {
+	return r.errChan
+}
+
+func (r *Runner) Shutdown(ctx context.Context) {
+	for _, srv := range r.servers {
+		srv.Shutdown(ctx)
+	}
 }

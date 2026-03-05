@@ -1,4 +1,4 @@
-.PHONY: all build clean run
+.PHONY: all build clean run generate
 
 BINARY_NAME := locker
 BUILD_DIR := .build
@@ -19,3 +19,9 @@ run: build
 clean:
 	rm -rf $(BUILD_DIR)
 	@echo "Clean completed"
+
+generate:
+	rm -rf internal/infrastructure/storage/sqlite/sqlitegen/*.go
+	sqlc generate
+	@go build ./... || (echo "Generated code is broken!" && exit 1)
+	@echo "Generated: sqlc code (verified)"

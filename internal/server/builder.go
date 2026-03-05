@@ -12,7 +12,7 @@ import (
 	infrCrypto "github.com/fuzr0dah/locker/internal/infrastructure/crypto"
 	"github.com/fuzr0dah/locker/internal/infrastructure/log"
 	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite"
-	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/db/migrations"
+	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/migrations"
 	httpsrv "github.com/fuzr0dah/locker/internal/server/http"
 )
 

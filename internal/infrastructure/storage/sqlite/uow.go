@@ -9,14 +9,14 @@ import (
 
 	"github.com/fuzr0dah/locker/internal/domain/repository"
 	"github.com/fuzr0dah/locker/internal/domain/secrets"
-	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/db"
+	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/sqlitegen"
 )
 
 // unitOfWork implements storage.UnitOfWork interface for SQLite
 type unitOfWork struct {
 	db      *sql.DB
 	tx      *sql.Tx
-	queries *db.Queries
+	queries *sqlitegen.Queries
 
 	writer repository.SecretWriter
 }
@@ -36,7 +36,7 @@ func (u *unitOfWork) Begin(ctx context.Context) error {
 	}
 
 	u.tx = tx
-	u.queries = db.New(tx)
+	u.queries = sqlitegen.New(tx)
 
 	return nil
 }
@@ -99,7 +99,7 @@ func (s *txStorage) CreateSecret(ctx context.Context, name string, value []byte)
 		return nil, fmt.Errorf("generate secret id: %w", err)
 	}
 
-	_, err = s.secretReader.queries.CreateSecret(ctx, db.CreateSecretParams{ID: secretID, Name: name})
+	_, err = s.secretReader.queries.CreateSecret(ctx, sqlitegen.CreateSecretParams{ID: secretID, Name: name})
 	if err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, secrets.ErrNameAlreadyExists
@@ -107,7 +107,7 @@ func (s *txStorage) CreateSecret(ctx context.Context, name string, value []byte)
 		return nil, fmt.Errorf("create secret record: %w", err)
 	}
 
-	secretVersion, err := s.secretReader.queries.CreateInitialVersion(ctx, db.CreateInitialVersionParams{
+	secretVersion, err := s.secretReader.queries.CreateInitialVersion(ctx, sqlitegen.CreateInitialVersionParams{
 		SecretID: secretID,
 		Value:    value,
 	})
@@ -115,7 +115,7 @@ func (s *txStorage) CreateSecret(ctx context.Context, name string, value []byte)
 		return nil, fmt.Errorf("create initial version: %w", err)
 	}
 
-	secret, err := s.secretReader.queries.InsertVersionIntoSecret(ctx, db.InsertVersionIntoSecretParams{
+	secret, err := s.secretReader.queries.InsertVersionIntoSecret(ctx, sqlitegen.InsertVersionIntoSecretParams{
 		ID:        secretID,
 		VersionID: sql.NullInt64{Int64: secretVersion.ID, Valid: true},
 	})
@@ -123,7 +123,7 @@ func (s *txStorage) CreateSecret(ctx context.Context, name string, value []byte)
 		return nil, fmt.Errorf("link version to secret: %w", err)
 	}
 
-	return fromDBSecret(secret), nil
+	return fromSQLiteSecret(secret), nil
 }
 
 func (s *txStorage) UpdateSecret(ctx context.Context, id, name string, value []byte) (*secrets.Secret, error) {
@@ -135,7 +135,7 @@ func (s *txStorage) UpdateSecret(ctx context.Context, id, name string, value []b
 		return nil, fmt.Errorf("get current version: %w", err)
 	}
 
-	newVersion, err := s.secretReader.queries.CreateNextVersion(ctx, db.CreateNextVersionParams{
+	newVersion, err := s.secretReader.queries.CreateNextVersion(ctx, sqlitegen.CreateNextVersionParams{
 		SecretID: id,
 		Version:  currentVersion.Version + 1,
 		Value:    value,
@@ -144,7 +144,7 @@ func (s *txStorage) UpdateSecret(ctx context.Context, id, name string, value []b
 		return nil, fmt.Errorf("create new version: %w", err)
 	}
 
-	updated, err := s.secretReader.queries.UpdateSecret(ctx, db.UpdateSecretParams{
+	updated, err := s.secretReader.queries.UpdateSecret(ctx, sqlitegen.UpdateSecretParams{
 		ID:           id,
 		Name:         name,
 		VersionID:    sql.NullInt64{Int64: newVersion.ID, Valid: true},
@@ -157,7 +157,7 @@ func (s *txStorage) UpdateSecret(ctx context.Context, id, name string, value []b
 		return nil, fmt.Errorf("update secret: %w", err)
 	}
 
-	return fromDBSecret(updated), nil
+	return fromSQLiteSecret(updated), nil
 }
 
 func (s *txStorage) DeleteSecret(ctx context.Context, id string) error {

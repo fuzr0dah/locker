@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
@@ -30,4 +31,8 @@ func NewServer(facade facade.SecretsFacade, logger *slog.Logger) (*server, error
 
 func (s *server) Start() error {
 	return s.httpServer.ListenAndServe()
+}
+
+func (s *server) Shutdown(ctx context.Context) error {
+	return s.httpServer.Shutdown(ctx)
 }

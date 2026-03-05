@@ -7,18 +7,18 @@ import (
 	"fmt"
 
 	"github.com/fuzr0dah/locker/internal/domain/secrets"
-	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/db"
+	"github.com/fuzr0dah/locker/internal/infrastructure/storage/sqlite/sqlitegen"
 )
 
 // secretReader implements read-only operations for secrets
 type secretReader struct {
-	queries *db.Queries
+	queries *sqlitegen.Queries
 }
 
 // NewSecretReader creates a new read-only storage instance
 func NewSecretReader(conn *sql.DB) *secretReader {
 	return &secretReader{
-		queries: db.New(conn),
+		queries: sqlitegen.New(conn),
 	}
 }
 
@@ -31,7 +31,7 @@ func (r *secretReader) GetSecretById(ctx context.Context, id string) (*secrets.S
 		}
 		return nil, fmt.Errorf("get secret: %w", err)
 	}
-	return fromGetSecretByIdRow(secret), nil
+	return fromSQLiteGetSecretByIdRow(secret), nil
 }
 
 // ListSecrets returns all secrets
@@ -43,7 +43,7 @@ func (r *secretReader) ListSecrets(ctx context.Context) ([]*secrets.Secret, erro
 
 	secretList := make([]*secrets.Secret, len(list))
 	for i := range list {
-		secretList[i] = fromDBSecret(list[i])
+		secretList[i] = fromSQLiteSecret(list[i])
 	}
 
 	return secretList, nil
@@ -51,7 +51,7 @@ func (r *secretReader) ListSecrets(ctx context.Context) ([]*secrets.Secret, erro
 
 // GetSecretVersion returns a specific version of a secret
 func (r *secretReader) GetSecretVersion(ctx context.Context, id string, version int) (*secrets.SecretVersion, error) {
-	secretVersion, err := r.queries.GetSecretVersion(ctx, db.GetSecretVersionParams{
+	secretVersion, err := r.queries.GetSecretVersion(ctx, sqlitegen.GetSecretVersionParams{
 		SecretID: id,
 		Version:  int64(version),
 	})
@@ -61,7 +61,7 @@ func (r *secretReader) GetSecretVersion(ctx context.Context, id string, version 
 		}
 		return nil, fmt.Errorf("get secret version: %w", err)
 	}
-	return fromDBSecretVersion(secretVersion), nil
+	return fromSQLiteSecretVersion(secretVersion), nil
 }
 
 // GetSecretVersions returns version history for a secret

@@ -1,6 +1,8 @@
 package server
 
+import "context"
+
 type Server interface {
 	Start() error
-	// TODO: Shutdown(ctx context.Context)
+	Shutdown(ctx context.Context) error
 }

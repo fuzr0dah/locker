@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/fuzr0dah/locker/internal/server"
 
@@ -20,6 +22,7 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 		Long:         serverDescription,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 			runner, deps, err := server.NewRunnerWithDeps(f.stdout, devMode)
 			if err != nil {
 				return err
@@ -27,10 +30,19 @@ func (f *CommandsFactory) NewServerCommand() *cobra.Command {
 			defer deps.Close()
 
 			runner.Start()
-			if err := runner.Wait(); err != nil {
-				return fmt.Errorf("server error: %w", err)
+			select {
+			case err := <-runner.Wait():
+				runner.Shutdown(ctx)
+				if err != nil {
+					return fmt.Errorf("server error: %w", err)
+				}
+				return nil
+			case <-ctx.Done():
+				stopContext, stopFunc := context.WithTimeout(context.Background(), 5*time.Second)
+				defer stopFunc()
+				runner.Shutdown(stopContext)
+				return nil
 			}
-			return nil
 		},
 	}
 
